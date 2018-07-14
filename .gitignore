@@ -1,0 +1,22 @@
+# Exclude all files/directories except the ones I want
+/*
+
+# gitignore
+!.gitignore
+
+# Readme
+!README.md
+
+# rrt
+!/rrt/
+/rrt/*
+!/rrt/rrt.cpp
+!/rrt/CMakeLists.txt
+
+# balance_collision
+!/rrt/balance_collision.hpp
+!/rrt/balance_collision.cpp
+
+# file_ops
+!/rrt/file_ops.hpp
+!/rrt/file_ops.cpp
