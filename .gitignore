@@ -13,9 +13,9 @@
 !/rrt/rrt.cpp
 !/rrt/CMakeLists.txt
 
-# balance_collision
-!/rrt/balance_collision.hpp
-!/rrt/balance_collision.cpp
+# collision
+!/rrt/collision.hpp
+!/rrt/collision.cpp
 
 # file_ops
 !/rrt/file_ops.hpp

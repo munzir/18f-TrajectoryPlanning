@@ -1,11 +1,10 @@
 // Author Akash Patel (apatel435@gatech.edu)
-// Purpose: Helper source code file for generating poses that focuses on
-// balancing and collision code
+// Purpose: Helper source code file for collision checking
 
 // Includes
 #include <dart/dart.hpp>
 #include <dart/utils/urdf/urdf.hpp>
-#include "balance_collision.hpp"
+#include "collision.hpp"
 
 // Namespaces
 using namespace std;
@@ -30,7 +29,7 @@ double lowerJointLimit[] = {0, -1.57, -kpi, -kbendLimit, -kpi, -kbendLimit, -kpi
 double upperJointLimit[] = {2.88, 1.57, kpi, kbendLimit, kpi, kbendLimit, kpi, kbendLimit, kpi, kpi, kbendLimit, kpi, kbendLimit, kpi, kbendLimit, kpi};
 
 // Balance and Collision Method
-Eigen::MatrixXd balanceAndCollision(Eigen::MatrixXd inputPose, SkeletonPtr fullRobot, SkeletonPtr fixedWheelRobot, Eigen::MatrixXd(*balance)(SkeletonPtr robot, Eigen::MatrixXd unBalPose), double tolerance, bool collisionCheck) {
+bool inCollision(Eigen::MatrixXd inputPose, SkeletonPtr fullRobot) {
     Eigen::MatrixXd balPoseParams;
 
     // Set position of full robot to the pose for transform and collision
@@ -40,20 +39,11 @@ Eigen::MatrixXd balanceAndCollision(Eigen::MatrixXd inputPose, SkeletonPtr fullR
 
     // Check for first parent joint constraints throw exception if fails
     if (!inFirstParentJointLimits(balPoseParams, fullRobot)) {
-        throw runtime_error("Pose violates first parent joint limits!");
+        return true;
     }
 
     // Run it through collision check
-    bool isCollision = false;
-    if (collisionCheck == true) {
-        isCollision = isColliding(fullRobot);
-    }
-    // Throw exception if colliding
-    if (isCollision) {
-        throw runtime_error("Pose is in collision!");
-    }
-
-    return balPoseParams.transpose();
+    return isColliding(fullRobot);
 }
 
 // // First Parent Collision Checking

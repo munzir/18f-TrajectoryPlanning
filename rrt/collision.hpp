@@ -13,6 +13,7 @@ using namespace dart::math;
 using namespace dart::utils;
 
 // // Collision Checking Methods
+bool inCollision(Eigen::MatrixXd inputPose, SkeletonPtr fullRobot);
 bool inFirstParentJointLimits(Eigen::MatrixXd inputPose, SkeletonPtr robot);
 bool isColliding(SkeletonPtr robot);
 
