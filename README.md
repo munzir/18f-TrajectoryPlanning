@@ -22,4 +22,12 @@ With an input of poses, generates a safe trajectory.
 
     ./rrt
 
+## reorder\_poses.cpp
+Orders a set of poses based on how "close" they are. Closeness is determined by
+the differences in joint angles for all the joints.
 
+### Dependencies
+No additional dependencies besides a C++ compiler
+
+### Build and Run
+Same as rrt

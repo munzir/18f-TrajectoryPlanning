@@ -7,6 +7,10 @@
 # Readme
 !README.md
 
+# file_ops
+!file_ops.hpp
+!file_ops.cpp
+
 # rrt
 !/rrt/
 /rrt/*
@@ -17,6 +21,8 @@
 !/rrt/collision.hpp
 !/rrt/collision.cpp
 
-# file_ops
-!/rrt/file_ops.hpp
-!/rrt/file_ops.cpp
+# reorder
+!/reorder_poses/
+/reorder_poses/*
+!/reorder_poses/reorder_poses.cpp
+!/reorder_poses/CMakeLists.txt

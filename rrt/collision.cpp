@@ -30,15 +30,14 @@ double upperJointLimit[] = {2.88, 1.57, kpi, kbendLimit, kpi, kbendLimit, kpi, k
 
 // Balance and Collision Method
 bool inCollision(Eigen::MatrixXd inputPose, SkeletonPtr fullRobot) {
-    Eigen::MatrixXd balPoseParams;
 
     // Set position of full robot to the pose for transform and collision
-    fullRobot->setPositions(balPoseParams);
+    fullRobot->setPositions(inputPose);
     fullRobot->enableSelfCollisionCheck();
     fullRobot->disableAdjacentBodyCheck();
 
     // Check for first parent joint constraints throw exception if fails
-    if (!inFirstParentJointLimits(balPoseParams, fullRobot)) {
+    if (!inFirstParentJointLimits(inputPose, fullRobot)) {
         return true;
     }
 
