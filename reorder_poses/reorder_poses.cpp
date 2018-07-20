@@ -19,7 +19,7 @@ using namespace std;
 
 // Function Prototypes
 // // Reorder the poses in terms of closest distance
-Eigen::MatrixXd reorderPoses(Eigen::MatrixXd inputPoses);
+Eigen::MatrixXd reorderPoses(Eigen::MatrixXd inputPoses, Eigen::MatrixXd dofWeights);
 
 // TODO: Commandline arguments a default values
 int main() {
@@ -29,6 +29,17 @@ int main() {
 
     // INPUT on below line (absolute robot path)
     string fullRobotPath = "/home/apatel435/Desktop/WholeBodyControlAttempt1/09-URDF/Krang/Krang.urdf";
+
+
+    // INPUT on below line (weights on each joint)
+    // Order is the same as the dart format for pose
+    Eigen::MatrixXd dofWeights(1, 25);
+    dofWeights << 1, 1, 1,    // Axis Angle
+                  1, 1, 1,    // x, y, z
+                  1, 1,       // qLWheel, qRWheel
+                  1, 1, 1,    // qWaist, qTorso, qKinect
+      1, 1, 1, 1, 1, 1, 1,   // qLArm0, ..., qLArm6 (from shoulder to the last joint)
+      1, 1, 1, 1, 1, 1, 1;   // qRArm0, ..., qRArm6 (from shoulder to the last joint)
 
     // INPUT on below line (output filename)
     string outputBaseName = "ordered";
@@ -45,7 +56,7 @@ int main() {
     }
 
     cout << "Ordering Poses ...\n";
-    Eigen::MatrixXd orderedPoses = reorderPoses(inputPoses);
+    Eigen::MatrixXd orderedPoses = reorderPoses(inputPoses, dofWeights);
     cout << "|-> Done\n";
 
     // Write test xCOM values to file
@@ -66,7 +77,7 @@ int main() {
 }
 
 // // Reorder the poses in terms of closest distance
-Eigen::MatrixXd reorderPoses(Eigen::MatrixXd inputPoses) {
+Eigen::MatrixXd reorderPoses(Eigen::MatrixXd inputPoses, Eigen::MatrixXd dofWeights) {
     Eigen::MatrixXd orderedPoses(inputPoses.rows(), inputPoses.cols());
 
     cout << "Pose: 0" << "/" << inputPoses.rows();
@@ -79,12 +90,12 @@ Eigen::MatrixXd reorderPoses(Eigen::MatrixXd inputPoses) {
     for (int pose = 1; pose < orderedPoses.rows(); pose++) {
         Eigen::MatrixXd prevPose = orderedPoses.row(pose - 1);
         int nextClosePose = 0;
-        double minNorm = (prevPose - inputPoses.row(0)).norm();
+        double minNorm = (dofWeights.transpose() * (prevPose - inputPoses.row(0))).norm();
         int i = 0;
         while (i < inputPoses.rows()) {
 
             cout << "\rPose: " << pose + 1 << "/" << orderedPoses.rows() << " Finding Closest: " << i << "/" << inputPoses.rows() << " \t ";
-            double norm = (prevPose - inputPoses.row(i)).norm();
+            double norm = (dofWeights.transpose() * (prevPose - inputPoses.row(i))).norm();
             if (norm < minNorm) {
                 minNorm = norm;
                 nextClosePose = i;
