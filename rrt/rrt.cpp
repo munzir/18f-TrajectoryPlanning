@@ -64,7 +64,8 @@ int main() {
     srand(0);
 
     // INPUT on below line (input poses filename)
-    string inputPosesFilename = "../orderedrandom10fullbalance0.001000tolsafe.txt";
+    //string inputPosesFilename = "../orderedrandom10fullbalance0.001000tolsafe.txt";
+    string inputPosesFilename = "../sparsedorderedfinalSet.txt";
     //string inputPosesFilename = "../random2fullbalance0.001000tolsafe.txt";
 
     // INPUT on below line (absolute robot path)
@@ -72,20 +73,20 @@ int main() {
 
     // INPUT on below line (branching factor for RRT) (how many children poses
     // for each parent (basically how wide to explore)
-    int branchFactor = 2;
+    int branchFactor = 1;
 
     // INPUT on below line (pose equality tolerance)
     double tolerance = 0.010;
 
     // INPUT on below line (step size for random (radians))
-    double randomStep = 0.250;
+    double randomStep = 0.200;
 
     // INPUT on below line (target bias in decimal)
-    double targetBias = 0.8;
+    double targetBias = 0.7;
 
     // INPUT on below line (whether to move the joint or not during the next
     // pose)
-    double jointMoveBias = 0.90;
+    double jointMoveBias = 0.80;
 
     // INPUT on below line (output filename)
     string outputBaseName = "poseTrajectories";
@@ -133,7 +134,8 @@ Eigen::MatrixXd createAllTrajectories(Eigen::MatrixXd inputPoses, string fullRob
     //TODO what is upper limit on pose trajectory?
     //I guess i can just write it out directly
     Eigen::MatrixXd allInterPoseTraj = inputPoses.row(0);
-    for (int pose = 0; pose < inputPoses.rows() - 1; pose++) {
+    //for (int pose = 0; pose < inputPoses.rows() - 1; pose++) {
+    for (int pose = 0; pose < 10; pose++) {
         cout << "Trajectory from " << pose << " to " << pose + 1 << endl;
         Eigen::MatrixXd interPoseTraj = createTrajectory(inputPoses.row(pose), inputPoses.row(pose + 1), robot, branchFactor, tolerance, randomStep, targetBias, jointMoveBias);
         Eigen::MatrixXd prunedInterPoseTraj = pruneTrajectory(interPoseTraj);
@@ -167,9 +169,12 @@ Eigen::MatrixXd createTrajectory(Eigen::MatrixXd startPose, Eigen::MatrixXd endP
     int posesInTree = 1;
     while (reachedGoal == false) {
         // Add the random Poses
-        nextInterPoseParent = trajectoryTree.row((posesInTree)/branchFactor);
-        //cout << "Parent" << posesInTree/branchFactor << endl;
-        //cout << "PosesInTree" << posesInTree << endl;
+        //nextInterPoseParent = trajectoryTree.row((posesInTree)/branchFactor);
+        //ONEBF
+        nextInterPoseParent = trajectoryTree.row((posesInTree) - 1);
+
+        cout << "Parent" << posesInTree/branchFactor << endl;
+        cout << "PosesInTree" << posesInTree << endl;
         nextInterPose = createNextSafeRandomPose(nextInterPoseParent, endPose, robot, randomStep, targetBias, jointMoveBias);
         //cout << nextInterPose << endl;
         // TODO Add it to eigen Matrix in a better fashion
@@ -189,6 +194,9 @@ Eigen::MatrixXd createTrajectory(Eigen::MatrixXd startPose, Eigen::MatrixXd endP
     Eigen::MatrixXd trajectory = endPose;
     Eigen::MatrixXd parentPose;
     int maxDepth = (int) (log(posesInTree) / log(branchFactor)) + 1;
+    //ONEBF
+    maxDepth = posesInTree;
+
     int currDepth = maxDepth - 1;
     int lastChildIndex = posesInTree - 1;
     int parentIndex = (lastChildIndex - 1)/branchFactor;

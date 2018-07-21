@@ -34,12 +34,21 @@ int main() {
     // INPUT on below line (weights on each joint)
     // Order is the same as the dart format for pose
     Eigen::MatrixXd dofWeights(1, 25);
+    /*dofWeights << 1, 1, 1,    // Axis Angle
+                  1, 1, 1,    // x, y, z
+                  1, 1,       // qLWheel, qRWheel
+                  99, 50, 0,    // qWaist, qTorso, qKinect
+      3, 1, 1, 1, 1, 1, 1,   // qLArm0, ..., qLArm6 (from shoulder to the last joint)
+      3, 1, 1, 1, 1, 1, 1;   // qRArm0, ..., qRArm6 (from shoulder to the last joint)
+    */
+
     dofWeights << 1, 1, 1,    // Axis Angle
                   1, 1, 1,    // x, y, z
                   1, 1,       // qLWheel, qRWheel
                   1, 1, 1,    // qWaist, qTorso, qKinect
       1, 1, 1, 1, 1, 1, 1,   // qLArm0, ..., qLArm6 (from shoulder to the last joint)
       1, 1, 1, 1, 1, 1, 1;   // qRArm0, ..., qRArm6 (from shoulder to the last joint)
+
 
     // INPUT on below line (output filename)
     string outputBaseName = "ordered";
