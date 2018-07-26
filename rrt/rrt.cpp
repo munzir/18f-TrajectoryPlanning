@@ -281,12 +281,52 @@ Eigen::MatrixXd createNextSafeRandomPose(Eigen::MatrixXd initialPose, Eigen::Mat
                 }
             }
 
-            // Add the default values first
             // TODO: Need to allow change for qBase
-            randomPoseParams(0, 0) = targetPose(0, 0);
-            randomPoseParams(1, 0) = targetPose(0, 1);
-            randomPoseParams(2, 0) = targetPose(0, 2);
+            // Find the target qBase and heading
+            robot->setPositions(targetPose.transpose());
+            Eigen::MatrixXd robotBaseTfTarget = robot->getBodyNode(0)->getTransform().matrix();
+            double headingTarget = atan2(robotBaseTfTarget(0, 0) , -robotBaseTfTarget(1, 0));
+            double qBaseTarget = atan2(robotBaseTfTarget(0,1)*cos(headingTarget) + robotBaseTfTarget(1,1)*sin(headingTarget), robotBaseTfTarget(2,1));
 
+            // Convert the three to qBase and heading
+            robot->setPositions(initialPose.transpose());
+            Eigen::MatrixXd robotBaseTf = robot->getBodyNode(0)->getTransform().matrix();
+            double headingInitial = atan2(robotBaseTf(0, 0) , -robotBaseTf(1, 0));
+            double qBaseInitial = atan2(robotBaseTf(0,1)*cos(headingInitial) + robotBaseTf(1,1)*sin(headingInitial), robotBaseTf(2,1));
+
+            // Change qBase and heading
+            double stepHeading = fRand(0.00, randomStep);
+            if (stepHeading > abs(headingTarget - headingInitial)) {
+                stepHeading = abs(headingTarget - headingInitial);
+            }
+            if (headingInitial > headingTarget) {
+                stepHeading *= -1;
+            }
+
+            double stepQBase = fRand(0.00, randomStep);
+            if (stepQBase > abs(qBaseTarget - qBaseInitial)) {
+                stepQBase = abs(qBaseTarget - qBaseInitial);
+            }
+            if (qBaseInitial > qBaseTarget) {
+                stepQBase *= -1;
+            }
+
+            double heading = headingInitial + stepHeading * qBaseMove;
+            double qBase = qBaseInitial + stepQBase * qBaseMove;
+
+            // Package new qBase and heading into three
+            // RotX(pi/2)*RotY(-pi/2+heading)*RotX(-qBaseInit)
+            Eigen::Transform<double, 3, Eigen::Affine> baseTf = Eigen::Transform<double, 3, Eigen::Affine>::Identity();
+            baseTf.prerotate(Eigen::AngleAxisd(-qBase,Eigen::Vector3d::UnitX())).prerotate(Eigen::AngleAxisd(-M_PI/2+heading,Eigen::Vector3d::UnitY())).prerotate(Eigen::AngleAxisd(M_PI/2, Eigen::Vector3d::UnitX()));
+            Eigen::AngleAxisd aa(baseTf.matrix().block<3,3>(0,0));
+            Eigen::MatrixXd aaMatrix = aa.angle()*aa.axis();
+
+            randomPoseParams(0, 0) = aaMatrix(0);
+            randomPoseParams(1, 0) = aaMatrix(1);
+            randomPoseParams(2, 0) = aaMatrix(2);
+
+
+            // Values that supposedly do not change
             randomPoseParams(3, 0) = targetPose(0, 3);
             randomPoseParams(4, 0) = targetPose(0, 4);
             randomPoseParams(5, 0) = targetPose(0, 5);
