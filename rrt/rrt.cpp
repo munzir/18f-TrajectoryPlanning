@@ -37,10 +37,10 @@ double upperLimit[] = {2.88, 1.57, pi, bendLimit, pi, bendLimit, pi, bendLimit, 
 
 // Function Prototypes
 // // Find all interpose trajectories
-Eigen::MatrixXd createAllTrajectories(Eigen::MatrixXd inputPoses, string fullRobotPath, int branchFactor, double tolerance, Eigen::MatrixXd maxRandomSteps, double targetBias, double jointMoveBias);
+Eigen::MatrixXd createAllTrajectories(Eigen::MatrixXd inputPoses, string fullRobotPath, int branchFactor, double tolerance, Eigen::MatrixXd maxRandomSteps, int granulation, double targetBias, double jointMoveBias);
 
 // // Find interpose trajectory
-Eigen::MatrixXd createTrajectory(Eigen::MatrixXd startPose, Eigen::MatrixXd endPose, SkeletonPtr robot, int branchFactor, double tolerance, Eigen::MatrixXd maxRandomSteps, double targetBias, double jointMoveBias);
+Eigen::MatrixXd createTrajectory(Eigen::MatrixXd startPose, Eigen::MatrixXd endPose, SkeletonPtr robot, int branchFactor, double tolerance, Eigen::MatrixXd maxRandomSteps, int granulation, double targetBias, double jointMoveBias);
 
 // // Prune interpose trajectory
 Eigen::MatrixXd pruneTrajectory(Eigen::MatrixXd trajectory);
@@ -49,7 +49,7 @@ Eigen::MatrixXd pruneTrajectory(Eigen::MatrixXd trajectory);
 Eigen::MatrixXd smoothTrajectory(Eigen::MatrixXd trajectory);
 
 // // Create next safe random pose
-Eigen::MatrixXd createNextSafeRandomPose(Eigen::MatrixXd initialPose, Eigen::MatrixXd targetPose, SkeletonPtr robot, Eigen::MatrixXd maxRandomSteps, double targetBias, double jointMoveBias);
+Eigen::MatrixXd createNextSafeRandomPose(Eigen::MatrixXd initialPose, Eigen::MatrixXd targetPose, SkeletonPtr robot, Eigen::MatrixXd maxRandomSteps, int granulation, double targetBias, double jointMoveBias);
 
 // // Check if two poses are the same (close enough)
 bool closeEnough(Eigen::MatrixXd pose1, Eigen::MatrixXd pose2, double tolerance);
@@ -66,6 +66,7 @@ int main() {
     // INPUT on below line (input poses filename)
     //string inputPosesFilename = "../orderedrandom10fullbalance0.001000tolsafe.txt";
     string inputPosesFilename = "../sparsedorderedfinalSet.txt";
+    //string inputPosesFilename = "../balancedPoses.txt";
     //string inputPosesFilename = "../random2fullbalance0.001000tolsafe.txt";
 
     // INPUT on below line (absolute robot path)
@@ -87,6 +88,9 @@ int main() {
           1, 1, 1, 1, 1, 1, 1; // qRArm0, ..., qRArm6 (from shoulder to the last joint)
     maxRandomSteps = randomStep * maxRandomSteps;
 
+    // INPUT on below line (granulation) (how many steps to check in
+    // between initial pose and the newly found pose
+    int granulation = 0;
 
 
     // INPUT on below line (target bias in decimal)
@@ -111,7 +115,7 @@ int main() {
     }
 
     cout << "Generating Trajectories ...\n";
-    Eigen::MatrixXd allTrajectories = createAllTrajectories(inputPoses, fullRobotPath, branchFactor, tolerance, maxRandomSteps, targetBias, jointMoveBias);
+    Eigen::MatrixXd allTrajectories = createAllTrajectories(inputPoses, fullRobotPath, branchFactor, tolerance, maxRandomSteps, granulation, targetBias, jointMoveBias);
     cout << "|-> Done\n";
 
     // Write test xCOM values to file
@@ -133,7 +137,7 @@ int main() {
 
 // // Find all interpose trajectories
 //TODO
-Eigen::MatrixXd createAllTrajectories(Eigen::MatrixXd inputPoses, string fullRobotPath, int branchFactor, double tolerance, Eigen::MatrixXd maxRandomSteps, double targetBias, double jointMoveBias) {
+Eigen::MatrixXd createAllTrajectories(Eigen::MatrixXd inputPoses, string fullRobotPath, int branchFactor, double tolerance, Eigen::MatrixXd maxRandomSteps, int granulation, double targetBias, double jointMoveBias) {
 
     // Instantiate full robot
     DartLoader loader;
@@ -145,7 +149,7 @@ Eigen::MatrixXd createAllTrajectories(Eigen::MatrixXd inputPoses, string fullRob
     //for (int pose = 0; pose < inputPoses.rows() - 1; pose++) {
     for (int pose = 0; pose < 10; pose++) {
         cout << "Trajectory from " << pose << " to " << pose + 1 << endl;
-        Eigen::MatrixXd interPoseTraj = createTrajectory(inputPoses.row(pose), inputPoses.row(pose + 1), robot, branchFactor, tolerance, maxRandomSteps, targetBias, jointMoveBias);
+        Eigen::MatrixXd interPoseTraj = createTrajectory(inputPoses.row(pose), inputPoses.row(pose + 1), robot, branchFactor, tolerance, maxRandomSteps, granulation, targetBias, jointMoveBias);
         Eigen::MatrixXd prunedInterPoseTraj = pruneTrajectory(interPoseTraj);
         Eigen::MatrixXd smoothedInterPoseTraj = smoothTrajectory(prunedInterPoseTraj);
         // How to add these to allInterPoseTraj without concatenating
@@ -161,7 +165,7 @@ Eigen::MatrixXd createAllTrajectories(Eigen::MatrixXd inputPoses, string fullRob
 
 // // Find interpose trajectory
 //TODO
-Eigen::MatrixXd createTrajectory(Eigen::MatrixXd startPose, Eigen::MatrixXd endPose, SkeletonPtr robot, int branchFactor, double tolerance, Eigen::MatrixXd maxRandomSteps, double targetBias, double jointMoveBias) {
+Eigen::MatrixXd createTrajectory(Eigen::MatrixXd startPose, Eigen::MatrixXd endPose, SkeletonPtr robot, int branchFactor, double tolerance, Eigen::MatrixXd maxRandomSteps, int granulation, double targetBias, double jointMoveBias) {
 
     // Need to create the tree in this method
     // root is startPose
@@ -183,7 +187,7 @@ Eigen::MatrixXd createTrajectory(Eigen::MatrixXd startPose, Eigen::MatrixXd endP
 
         //cout << "Parent" << posesInTree/branchFactor << endl;
         cout << "PosesInTree" << posesInTree << endl;
-        nextInterPose = createNextSafeRandomPose(nextInterPoseParent, endPose, robot, maxRandomSteps, targetBias, jointMoveBias);
+        nextInterPose = createNextSafeRandomPose(nextInterPoseParent, endPose, robot, maxRandomSteps, granulation, targetBias, jointMoveBias);
         // cout << nextInterPose << endl;
         // TODO Add it to eigen Matrix in a better fashion
         Eigen::MatrixXd trajectoryTreeTmp(trajectoryTree.rows() + 1, trajectoryTree.cols());
@@ -238,7 +242,7 @@ Eigen::MatrixXd smoothTrajectory(Eigen::MatrixXd trajectory) {
 
 // // Create next random pose
 // TODO Need to create a random disturbance from initialPose
-Eigen::MatrixXd createNextSafeRandomPose(Eigen::MatrixXd initialPose, Eigen::MatrixXd targetPose, SkeletonPtr robot, Eigen::MatrixXd maxRandomSteps, double targetBias, double jointMoveBias) {
+Eigen::MatrixXd createNextSafeRandomPose(Eigen::MatrixXd initialPose, Eigen::MatrixXd targetPose, SkeletonPtr robot, Eigen::MatrixXd maxRandomSteps, int granulation, double targetBias, double jointMoveBias) {
 
     Eigen::MatrixXd randomPoseParams;
     //Eigen::MatrixXd randomPoseParams = initialPose.transpose();
@@ -493,8 +497,17 @@ Eigen::MatrixXd createNextSafeRandomPose(Eigen::MatrixXd initialPose, Eigen::Mat
         }
 
         //cout << randomPoseParams.transpose() << endl;
-        // Run it through collision check, if it passes then return
+        // Run it through collision check with granulation, if it passes then return
         isColliding = inCollision(randomPoseParams, robot);
+        if (!isColliding) {
+            for (int g = 1; g < granulation + 1; g++) {
+                Eigen::MatrixXd nextStepPose = initialPose + (randomPoseParams.transpose() - initialPose) * (g/granulation);
+                isColliding = inCollision(nextStepPose.transpose(), robot);
+                if (isColliding == true) {
+                    break;
+                }
+            }
+        }
         //cout << "Pose is colliding" << endl;
 
     }
