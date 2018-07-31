@@ -78,7 +78,7 @@ int main() {
     // INPUT on below line (input poses filename)
     //string inputPosesFilename = "../orderedrandom10fullbalance0.001000tolsafe.txt";
     //string inputPosesFilename = "../sparsedorderedfinalSet.txt";
-    string inputPosesFilename = "../finalSet.txt";
+    string inputPosesFilename = "../rfinalSet.txt";
     //string inputPosesFilename = "../random2fullbalance0.001000tolsafe.txt";
 
     // INPUT on below line (absolute robot path)
@@ -96,7 +96,7 @@ int main() {
 
     // INPUT on below line (step size for random (radians))
     //double randomStep = 0.500;
-    double randomStep = 1.000;
+    double randomStep = 2.000;
     Eigen::MatrixXd maxRandomSteps(1, 18);
     maxRandomSteps << 1, // qBase
                       1, 1, 1, // qWaist, qTorso, qKinect
@@ -107,10 +107,10 @@ int main() {
     // INPUT on below line (granulation) (how many steps to check in
     // between initial pose and the newly found pose)
     //int granulation = 10;
-    int granulation = 10;
+    int granulation = 100;
 
     // INPUT on below line (target bias in decimal)
-    double targetBias = 0.60;
+    double targetBias = 0.90;
 
     // INPUT on below line (whether to move the joint or not during the next
     // pose)
@@ -162,8 +162,9 @@ Eigen::MatrixXd createAllTrajectories(Eigen::MatrixXd inputPoses, string fullRob
     //TODO what is upper limit on pose trajectory?
     //I guess i can just write it out directly
     Eigen::MatrixXd allInterPoseTraj = inputPoses.row(0);
+    //TODO solve the 83 to 84 mystery
     for (int pose = 0; pose < inputPoses.rows() - 1; pose++) {
-    //for (int pose = 0; pose < 10; pose++) {
+    //for (int pose = 82; pose < 83; pose++) {
         cout << "Trajectory from " << pose + 1 << " to " << pose + 2 << endl;
         Eigen::MatrixXd interPoseTraj;
         if (fixedWaist) {
@@ -939,6 +940,11 @@ Eigen::MatrixXd createNextSafeFixedWaistRandomPose(Eigen::MatrixXd initialPose, 
 
         randomPoseParams(8, 0) = initialPose(0, 8);
         //randomPoseParams(8, 0) = targetPose(0, 8);
+
+        // TODO fix the 83 to 84 Prob
+        //isColliding = inCollision(initialPose.transpose(), robot);
+        //cout << initialPose << endl;
+        //cout << "Ini is col" + to_string(isColliding) << endl;
 
         //cout << randomPoseParams.transpose() << endl;
         // Run it through collision check with granulation, if it passes then return
