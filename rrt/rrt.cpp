@@ -272,34 +272,25 @@ Eigen::MatrixXd createFixedWaistTrajectory(Eigen::MatrixXd startPose, Eigen::Mat
     Eigen::MatrixXd nextInterPoseParent;
 
     // INPUT on below line (define a pose in which the waist is safe to move)
-    // TODO
-    Eigen::MatrixXd waistFreePose;
+    // TODO need to come back to define reset position for arms
+    double aa1Start = startPose.col(0)(0, 0);
+    double aa2Start = startPose.col(1)(0, 0);
+    double aa3Start = startPose.col(2)(0, 0);
+
+    double waistStart = startPose.col(8)(0, 0);
+    Eigen::MatrixXd waistSafePose(1, 25);
+    waistSafePose << aa1Start, aa2Start, aa3Start, // aa1, aa2, aa3
+                     0, 0, 0, // x, y, z
+                        0, 0, // qLWheel, qRWheel
+            waistStart, 0, 0, // qWaist, qTorso, qKinect
+         0, 0, 0, 0, 0, 0, 0, // qRArm0, ..., qRArm6 (from shoulder to the last joint)
+         0, 0, 0, 0, 0, 0, 0; // qRArm0, ..., qRArm6 (from shoulder to the last joint)
 
     bool reachedGoal = false;
     int posesInTree = 1;
 
     // Move pose to a waist-safe pose
     while (reachedGoal == false) {
-        //TODO
-        reachedGoal = true;
-    }
-    reachedGoal = false;
-
-    // TODO
-    // Move the safe pose only via waist to final waist position
-    //bool waistMovedSuccessfully = moveWaistOnly();
-
-    // TODO
-    // Move pose to final joints positions (waist is already in final position
-    // at this point)
-    while (reachedGoal == false) {
-        //TODO
-        reachedGoal = true;
-    }
-
-
-    while (reachedGoal == false) {
-        // Add the random Poses
         //nextInterPoseParent = trajectoryTree.row((posesInTree)/branchFactor);
         //TODO ONEBF
         nextInterPoseParent = trajectoryTree.row((posesInTree) - 1);
@@ -307,16 +298,8 @@ Eigen::MatrixXd createFixedWaistTrajectory(Eigen::MatrixXd startPose, Eigen::Mat
         //cout << "Parent" << posesInTree/branchFactor << endl;
         cout << "PosesInTree" << posesInTree << endl;
 
-        // Try to move waist first
-        if (posesInTree == 1) {
-            bool waistMovedFirstSuccessfully = moveWaistOnly(nextInterPoseParent, endPose.col(8)(0, 0), &nextInterPose, robot);
-            if (!waistMovedFirstSuccessfully) {
-                nextInterPose = createNextSafeFixedWaistRandomPose(nextInterPoseParent, endPose, robot, maxRandomSteps, granulation, targetBias, jointMoveBias);
-            }
-        } else {
-            nextInterPose = createNextSafeFixedWaistRandomPose(nextInterPoseParent, endPose, robot, maxRandomSteps, granulation, targetBias, jointMoveBias);
-        }
-        // cout << nextInterPose << endl;
+        nextInterPose = createNextSafeFixedWaistRandomPose(nextInterPoseParent, waistSafePose, robot, maxRandomSteps, granulation, targetBias, jointMoveBias);
+
         // TODO Add it to eigen Matrix in a better fashion
         Eigen::MatrixXd trajectoryTreeTmp(trajectoryTree.rows() + 1, trajectoryTree.cols());
         trajectoryTreeTmp << trajectoryTree,
@@ -324,25 +307,55 @@ Eigen::MatrixXd createFixedWaistTrajectory(Eigen::MatrixXd startPose, Eigen::Mat
         trajectoryTree = trajectoryTreeTmp;
         //trajectoryTree.row(posesInTree) = nextInterPose;
 
-        if (allButWaistCloseEnough(nextInterPose, endPose, tolerance)) {
+        if (closeEnough(nextInterPose, waistSafePose, tolerance)) {
             reachedGoal = true;
         }
         posesInTree++;
     }
+    reachedGoal = false;
 
-    //TODO
-    bool waistMovedLastSuccessfully = moveWaistOnly(nextInterPose, endPose.col(8)(0, 0), &nextInterPose, robot);
-    if (!waistMovedLastSuccessfully) {
-        // If not found just make then zeros
-        nextInterPose = Eigen::MatrixXd::Zero(1, 25);
-    }
+    // Move the safe pose only via waist to final waist position
+    nextInterPoseParent = trajectoryTree.row((posesInTree) - 1);
+    bool waistMovedSuccessfully = moveWaistOnly(nextInterPoseParent, endPose.col(8)(0, 0), &nextInterPose, robot);
     posesInTree++;
 
+    if (!waistMovedSuccessfully) {
+        // Maybe even program force exit or something
+        nextInterPose = Eigen::MatrixXd::Zero(1, 25);
+    }
+
+    // TODO Add it to eigen Matrix in a better fashion
     Eigen::MatrixXd trajectoryTreeTmp(trajectoryTree.rows() + 1, trajectoryTree.cols());
     trajectoryTreeTmp << trajectoryTree,
                          nextInterPose;
     trajectoryTree = trajectoryTreeTmp;
     //trajectoryTree.row(posesInTree) = nextInterPose;
+
+    // Move pose to final joints positions (waist is already in final position
+    // at this point)
+    while (reachedGoal == false) {
+        //nextInterPoseParent = trajectoryTree.row((posesInTree)/branchFactor);
+        //TODO ONEBF
+        nextInterPoseParent = trajectoryTree.row((posesInTree) - 1);
+        //cout << nextInterPoseParent << endl;
+
+        //cout << "Parent" << posesInTree/branchFactor << endl;
+        cout << "PosesInTree" << posesInTree << endl;
+
+        nextInterPose = createNextSafeFixedWaistRandomPose(nextInterPoseParent, endPose, robot, maxRandomSteps, granulation, targetBias, jointMoveBias);
+
+        // TODO Add it to eigen Matrix in a better fashion
+        Eigen::MatrixXd trajectoryTreeTmp(trajectoryTree.rows() + 1, trajectoryTree.cols());
+        trajectoryTreeTmp << trajectoryTree,
+                             nextInterPose;
+        trajectoryTree = trajectoryTreeTmp;
+        //trajectoryTree.row(posesInTree) = nextInterPose;
+
+        if (closeEnough(nextInterPose, endPose, tolerance)) {
+            reachedGoal = true;
+        }
+        posesInTree++;
+    }
 
     // Backtrack the eigen::matrix
     Eigen::MatrixXd trajectory = endPose;
@@ -659,10 +672,10 @@ Eigen::MatrixXd createNextSafeRandomPose(Eigen::MatrixXd initialPose, Eigen::Mat
 
 // // Create next random pose
 // TODO Need to create a random disturbance from initialPose
+// TODO Need to set waist to constant value for each new one created
 Eigen::MatrixXd createNextSafeFixedWaistRandomPose(Eigen::MatrixXd initialPose, Eigen::MatrixXd targetPose, SkeletonPtr robot, Eigen::MatrixXd maxRandomSteps, int granulation, double targetBias, double jointMoveBias) {
 
     Eigen::MatrixXd randomPoseParams;
-    //Eigen::MatrixXd randomPoseParams = initialPose.transpose();
 
     //double a = 0; //axis-angle1
     //double b = 0; //axis-angle2
@@ -702,8 +715,7 @@ Eigen::MatrixXd createNextSafeFixedWaistRandomPose(Eigen::MatrixXd initialPose, 
                     qBaseMove = 1;
                 } else {
                     if (jointMoveProb <= jointMoveBias) {
-                        jointMove[i] = 1;
-                    } else {
+                        jointMove[i] = 1; } else {
                         jointMove[i] = 0;
                     }
                 }
@@ -913,6 +925,21 @@ Eigen::MatrixXd createNextSafeFixedWaistRandomPose(Eigen::MatrixXd initialPose, 
             }
         }
 
+        // Set the waist to be the same since that's what fixed waist means lol
+        // AHHHHHHHHHHHHHHHH Why scream?
+        // Cuz we should get same results using either initialPose or targetPose
+        // But do we?
+        // No, No we dont. A solution does not occur using initialPose
+        // Hmmm, lets inspect out data for targetPose and see if the trajectory
+        // follows what we want.
+        // Seems like if the target waist was lower then the initial waist, the
+        // method moveWaistOnly would not move the waist
+        // Fixed now
+        // Phew what a bug
+
+        randomPoseParams(8, 0) = initialPose(0, 8);
+        //randomPoseParams(8, 0) = targetPose(0, 8);
+
         //cout << randomPoseParams.transpose() << endl;
         // Run it through collision check with granulation, if it passes then return
         isColliding = inCollision(randomPoseParams, robot);
@@ -936,19 +963,25 @@ bool moveWaistOnly(Eigen::MatrixXd startPose, double targetWaistPosition, Eigen:
 
     Eigen::MatrixXd movingWaistPose = startPose;
     double waistStep = 0.010; //radians
+    if (movingWaistPose.col(8)(0, 0) > targetWaistPosition) {
+        waistStep *= -1;
+    }
+
+    if (inCollision(movingWaistPose.transpose(), robot)) {
+        return false;
+    }
 
     // Move the waist incrementally to see if collision happens
-    while (movingWaistPose.col(8)(0, 0) <= targetWaistPosition) {
-        if (inCollision(movingWaistPose, robot)) {
-            return false;
-        }
-        if (movingWaistPose.col(8)(0, 0) + waistStep > targetWaistPosition) {
+    while (movingWaistPose.col(8)(0, 0) - targetWaistPosition != 0) {
+        if (abs(movingWaistPose.col(8)(0, 0) - targetWaistPosition) < abs(waistStep)) {
             movingWaistPose.col(8)(0, 0) = targetWaistPosition;
         } else {
             movingWaistPose.col(8)(0, 0) += waistStep;
         }
+        if (inCollision(movingWaistPose.transpose(), robot)) {
+            return false;
+        }
     }
-
     *nextPose = movingWaistPose;
 
     return true;
@@ -972,7 +1005,6 @@ bool allButWaistCloseEnough(Eigen::MatrixXd pose1, Eigen::MatrixXd pose2, double
     pose1.col(8)(0, 0) = 0;
     pose2.col(8)(0, 0) = 0;
     //TODO
-    cout << pose1 << endl;
     double poseNormed = (pose1 - pose2).norm();
     cout << "\rNorm " << poseNormed;
     for (int i = 0; i < pose1.cols(); i++) {
