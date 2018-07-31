@@ -16,6 +16,8 @@
 /rrt/*
 !/rrt/rrt.cpp
 !/rrt/CMakeLists.txt
+# rfinalSet trajectories
+!/rrt/poseTrajectoriesrfinalSet/
 
 # collision
 !/rrt/collision.hpp

@@ -162,9 +162,9 @@ Eigen::MatrixXd createAllTrajectories(Eigen::MatrixXd inputPoses, string fullRob
     //TODO what is upper limit on pose trajectory?
     //I guess i can just write it out directly
     Eigen::MatrixXd allInterPoseTraj = inputPoses.row(0);
-    //TODO solve the 83 to 84 mystery
-    for (int pose = 0; pose < inputPoses.rows() - 1; pose++) {
-    //for (int pose = 82; pose < 83; pose++) {
+    //TODO solve the 69 to 70 mystery
+    //for (int pose = 0; pose < inputPoses.rows() - 1; pose++) {
+    for (int pose = 69; pose < inputPoses.rows() - 1; pose++) {
         cout << "Trajectory from " << pose + 1 << " to " << pose + 2 << endl;
         Eigen::MatrixXd interPoseTraj;
         if (fixedWaist) {
@@ -941,10 +941,12 @@ Eigen::MatrixXd createNextSafeFixedWaistRandomPose(Eigen::MatrixXd initialPose, 
         randomPoseParams(8, 0) = initialPose(0, 8);
         //randomPoseParams(8, 0) = targetPose(0, 8);
 
-        // TODO fix the 83 to 84 Prob
+        // TODO fix the 69 to 70 Prob
+        // Mystery might be the fact that it just takes a while
         //isColliding = inCollision(initialPose.transpose(), robot);
         //cout << initialPose << endl;
-        //cout << "Ini is col" + to_string(isColliding) << endl;
+        //string isIniCol = to_string(isColliding);
+        //cout << "Ini is col" + isIniCol << endl;
 
         //cout << randomPoseParams.transpose() << endl;
         // Run it through collision check with granulation, if it passes then return
