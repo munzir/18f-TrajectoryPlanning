@@ -25,7 +25,7 @@ Eigen::MatrixXd reorderPoses(Eigen::MatrixXd inputPoses, Eigen::MatrixXd dofWeig
 int main() {
     // INPUT on below line (input poses filename)
     //string inputPosesFilename = "../random6003fullbalance0.001000tolsafe.txt";
-    string inputPosesFilename = "../finalSet.txt";
+    string inputPosesFilename = "../reorientedbalancedPoses.txt";
 
     // INPUT on below line (absolute robot path)
     string fullRobotPath = "/home/apatel435/Desktop/WholeBodyControlAttempt1/09-URDF/Krang/Krang.urdf";
