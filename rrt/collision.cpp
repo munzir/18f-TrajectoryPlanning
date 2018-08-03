@@ -81,7 +81,8 @@ bool isColliding(SkeletonPtr robot) {
     WorldPtr world(new World);
     SkeletonPtr floor = createFloor();
 
-    world->addSkeleton(floor);
+    // TODO: DANGER the 291st pose in collision prob
+    //world->addSkeleton(floor);
     world->addSkeleton(robot);
 
     auto constraintSolver = world->getConstraintSolver();
@@ -92,6 +93,9 @@ bool isColliding(SkeletonPtr robot) {
 
     CollisionResult result;
     group->collide(option, &result);
+
+    //TODO
+    //cout << "Dart Col: " << result.isCollision() << endl;
 
     return result.isCollision();
 
