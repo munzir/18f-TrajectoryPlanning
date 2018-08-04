@@ -16,6 +16,8 @@
 /rrt/*
 !/rrt/rrt.cpp
 !/rrt/CMakeLists.txt
+# rfinalSet pose file
+!/rrt/rfinalSet.txt
 # rfinalSet trajectories
 !/rrt/poseTrajectoriesrfinalSet/
 

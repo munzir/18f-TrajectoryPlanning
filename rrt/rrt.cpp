@@ -168,13 +168,15 @@ Eigen::MatrixXd createAllTrajectories(Eigen::MatrixXd inputPoses, string fullRob
     // Check initial collision state
     // TODO solve the mystery of 108 to 109 not even finding the first pose
     // Check initial collision state
+    // TODO solve the mystery of 248 to 249 not even finding the first pose
+    // Check initial collision state
     // TODO solve the mystery of 290 to 291 until solved we skipping it
     // Prob: Not converging to target pose
     // TODO solve the mystery of 291 to 292 until solved we skipping it
     // Prob: Not even finding a pose
     //for (int pose = 0; pose < inputPoses.rows() - 1; pose++) {
     //for (int pose = 68; pose < inputPoses.rows() - 1; pose++) {
-    for (int pose = 108; pose < inputPoses.rows() - 1; pose++) {
+    for (int pose = 248; pose < inputPoses.rows() - 1; pose++) {
         cout << "Trajectory from " << pose + 1 << " to " << pose + 2 << endl;
         Eigen::MatrixXd interPoseTraj;
         if (fixedWaist) {
