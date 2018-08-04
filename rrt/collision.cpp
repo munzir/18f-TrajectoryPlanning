@@ -82,7 +82,7 @@ bool isColliding(SkeletonPtr robot) {
     SkeletonPtr floor = createFloor();
 
     // TODO: DANGER the 291st pose in collision prob
-    //world->addSkeleton(floor);
+    world->addSkeleton(floor);
     world->addSkeleton(robot);
 
     auto constraintSolver = world->getConstraintSolver();

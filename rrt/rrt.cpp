@@ -82,7 +82,7 @@ int main() {
     //string inputPosesFilename = "../random2fullbalance0.001000tolsafe.txt";
 
     // INPUT on below line (absolute robot path)
-    string fullRobotPath = "/home/apatel435/Desktop/WholeBodyControlAttempt1/09-URDF/Krang/Krang.urdf";
+    string fullRobotPath = "/home/apatel435/Desktop/WholeBodyControlAttempt1/09-URDF/Krang/KrangCollision.urdf";
 
     // INPUT on below line (to move the waist independently or not)
     bool fixedWaist = true;
@@ -162,12 +162,19 @@ Eigen::MatrixXd createAllTrajectories(Eigen::MatrixXd inputPoses, string fullRob
     //TODO what is upper limit on pose trajectory?
     //I guess i can just write it out directly
     Eigen::MatrixXd allInterPoseTraj = inputPoses.row(0);
+    // TODO solve the mystery of 69 to 70 not even finding the first pose
+    // Check initial collision state
+    // TODO solve the mystery of 83 to 84 not even finding the first pose
+    // Check initial collision state
+    // TODO solve the mystery of 108 to 109 not even finding the first pose
+    // Check initial collision state
     // TODO solve the mystery of 290 to 291 until solved we skipping it
     // Prob: Not converging to target pose
     // TODO solve the mystery of 291 to 292 until solved we skipping it
     // Prob: Not even finding a pose
     //for (int pose = 0; pose < inputPoses.rows() - 1; pose++) {
-    for (int pose = 289; pose < 291; pose++) {
+    //for (int pose = 68; pose < inputPoses.rows() - 1; pose++) {
+    for (int pose = 108; pose < inputPoses.rows() - 1; pose++) {
         cout << "Trajectory from " << pose + 1 << " to " << pose + 2 << endl;
         Eigen::MatrixXd interPoseTraj;
         if (fixedWaist) {
