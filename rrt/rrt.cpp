@@ -170,13 +170,25 @@ Eigen::MatrixXd createAllTrajectories(Eigen::MatrixXd inputPoses, string fullRob
     // Check initial collision state
     // TODO solve the mystery of 248 to 249 not even finding the first pose
     // Check initial collision state
+    // TODO solve the mystery of 271 to 272 not even finding the first pose
+    // Check initial collision state
     // TODO solve the mystery of 290 to 291 until solved we skipping it
     // Prob: Not converging to target pose
     // TODO solve the mystery of 291 to 292 until solved we skipping it
     // Prob: Not even finding a pose
+    // TODO solve the mystery of 294 to 295 until solved we skipping it
+    // Prob: Not converging to target pose
+    // TODO solve the mystery of 295 to 296 until solved we skipping it
+    // Prob: Not even finding a pose
+    // TODO solve the mystery of 351 to 352 until solved we skipping it
+    // Prob: Not even finding a pose
+    // TODO solve the mystery of 390 to 391 until solved we skipping it
+    // Prob: Not even finding a pose
+    // TODO also check the poses before the ones that are not even finding a
+    // pose since that might a collision or a longer trajectory then expected
     //for (int pose = 0; pose < inputPoses.rows() - 1; pose++) {
-    //for (int pose = 68; pose < inputPoses.rows() - 1; pose++) {
-    for (int pose = 248; pose < inputPoses.rows() - 1; pose++) {
+    //for (int pose = 68; pose < 69; pose++) {
+    for (int pose = 390; pose < inputPoses.rows() - 1; pose++) {
         cout << "Trajectory from " << pose + 1 << " to " << pose + 2 << endl;
         Eigen::MatrixXd interPoseTraj;
         if (fixedWaist) {
@@ -956,9 +968,9 @@ Eigen::MatrixXd createNextSafeFixedWaistRandomPose(Eigen::MatrixXd initialPose, 
         // TODO fix the 291 to 292 Prob (DANGER)
         // Look at line 84 of collision.cpp basically removed the floor for
         // collision detection
-        //isColliding = inCollision(initialPose.transpose(), robot);
+        isColliding = inCollision(initialPose.transpose(), robot);
         //cout << initialPose << endl;
-        //string isIniCol = to_string(isColliding);
+        string isIniCol = to_string(isColliding);
         //cout << "Ini is col" + isIniCol << endl;
 
         //cout << randomPoseParams.transpose() << endl;
