@@ -84,7 +84,7 @@ int main() {
     string fullRobotPath = "/home/apatel435/Desktop/WholeBodyControlAttempt1/09-URDF/Krang/Krang.urdf";
 
     // INPUT on below line (to move the waist independently or not)
-    bool fixedWaist = false;
+    bool fixedWaist = true;
 
     // INPUT on below line (branching factor for RRT) (how many children poses
     // for each parent (basically how wide to explore)
@@ -214,7 +214,6 @@ Eigen::MatrixXd createTrajectory(Eigen::MatrixXd startPose, Eigen::MatrixXd endP
         //cout << "Parent" << posesInTree/branchFactor << endl;
         cout << "PosesInTree" << posesInTree << endl;
         nextInterPose = createNextSafeRandomPose(nextInterPoseParent, endPose, robot, maxRandomSteps, granulation, targetBias, jointMoveBias);
-        // cout << nextInterPose << endl;
         // TODO Add it to eigen Matrix in a better fashion
         Eigen::MatrixXd trajectoryTreeTmp(trajectoryTree.rows() + 1, trajectoryTree.cols());
         trajectoryTreeTmp << trajectoryTree,
@@ -284,7 +283,7 @@ Eigen::MatrixXd createFixedWaistTrajectory(Eigen::MatrixXd startPose, Eigen::Mat
     waistSafePose << heading, qBase, // heading, qBase
                      x, y, z, // x, y, z
             qLWheel, qRWheel, // qLWheel, qRWheel
-               waistStart, 0, // qWaist, qTorso
+                        waistStart, 0, // qWaist, qTorso
          0, 0, 0, 0, 0, 0, 0, // qRArm0, ..., qRArm6 (from shoulder to the last joint)
          0, 0, 0, 0, 0, 0, 0; // qRArm0, ..., qRArm6 (from shoulder to the last joint)
 
@@ -448,16 +447,11 @@ Eigen::MatrixXd createNextSafeRandomPose(Eigen::MatrixXd initialPose, Eigen::Mat
 
             // TODO: Need to allow change for qBase
             // Find the target qBase and heading
-            robot->setPositions(munzirToDart(targetPose));
-            Eigen::MatrixXd robotBaseTfTarget = robot->getBodyNode(0)->getTransform().matrix();
-            double headingTarget = atan2(robotBaseTfTarget(0, 0) , -robotBaseTfTarget(1, 0));
-            double qBaseTarget = atan2(robotBaseTfTarget(0,1)*cos(headingTarget) + robotBaseTfTarget(1,1)*sin(headingTarget), robotBaseTfTarget(2,1));
+            double headingTarget = targetPose.coeff(0, 0);
+            double qBaseTarget = targetPose.coeff(0, 1);
 
-            // Convert the three to qBase and heading
-            robot->setPositions(munzirToDart(initialPose));
-            Eigen::MatrixXd robotBaseTf = robot->getBodyNode(0)->getTransform().matrix();
-            double headingInitial = atan2(robotBaseTf(0, 0) , -robotBaseTf(1, 0));
-            double qBaseInitial = atan2(robotBaseTf(0,1)*cos(headingInitial) + robotBaseTf(1,1)*sin(headingInitial), robotBaseTf(2,1));
+            double headingInitial = initialPose.coeff(0, 0);
+            double qBaseInitial = initialPose.coeff(0, 1);
 
             // Change qBase and heading
             double stepHeading = fRand(0.00, maxRandomSteps(0, 0));
@@ -481,16 +475,8 @@ Eigen::MatrixXd createNextSafeRandomPose(Eigen::MatrixXd initialPose, Eigen::Mat
             //TODO
             double qBase = qBaseInitial + stepQBase * qBaseMove;
 
-            // Package new qBase and heading into three
-            // RotX(pi/2)*RotY(-pi/2+heading)*RotX(-qBaseInit)
-            Eigen::Transform<double, 3, Eigen::Affine> baseTf = Eigen::Transform<double, 3, Eigen::Affine>::Identity();
-            baseTf.prerotate(Eigen::AngleAxisd(-qBase,Eigen::Vector3d::UnitX())).prerotate(Eigen::AngleAxisd(-M_PI/2+heading,Eigen::Vector3d::UnitY())).prerotate(Eigen::AngleAxisd(M_PI/2, Eigen::Vector3d::UnitX()));
-            Eigen::AngleAxisd aa(baseTf.matrix().block<3,3>(0,0));
-            Eigen::MatrixXd aaMatrix = aa.angle()*aa.axis();
-
-            //TODO
-            randomPoseParams(0, 0) = aaMatrix(0);
-            randomPoseParams(1, 0) = aaMatrix(1);
+            randomPoseParams(0, 0) = heading;
+            randomPoseParams(1, 0) = qBase;
 
             // Values that supposedly do not change
             randomPoseParams(2, 0) = targetPose(0, 2);
@@ -544,16 +530,12 @@ Eigen::MatrixXd createNextSafeRandomPose(Eigen::MatrixXd initialPose, Eigen::Mat
 
             // Add the default values first
             // TODO: Need to allow change for qBase
-            robot->setPositions(munzirToDart(targetPose.transpose()));
-            Eigen::MatrixXd robotBaseTfTarget = robot->getBodyNode(0)->getTransform().matrix();
-            double headingTarget = atan2(robotBaseTfTarget(0, 0) , -robotBaseTfTarget(1, 0));
-            double qBaseTarget = atan2(robotBaseTfTarget(0,1)*cos(headingTarget) + robotBaseTfTarget(1,1)*sin(headingTarget), robotBaseTfTarget(2,1));
+            double headingTarget = targetPose.coeff(0, 0);
+            double qBaseTarget = targetPose.coeff(0, 1);
 
             // Convert the three to qBase and heading
-            robot->setPositions(munzirToDart(initialPose));
-            Eigen::MatrixXd robotBaseTf = robot->getBodyNode(0)->getTransform().matrix();
-            double headingInitial = atan2(robotBaseTf(0, 0) , -robotBaseTf(1, 0));
-            double qBaseInitial = atan2(robotBaseTf(0,1)*cos(headingInitial) + robotBaseTf(1,1)*sin(headingInitial), robotBaseTf(2,1));
+            double headingInitial = initialPose.coeff(0, 0);
+            double qBaseInitial = initialPose.coeff(0, 1);
 
             // Change qBase and heading
             double stepHeading = fRand(0.00, maxRandomSteps(0, 0));
@@ -571,15 +553,8 @@ Eigen::MatrixXd createNextSafeRandomPose(Eigen::MatrixXd initialPose, Eigen::Mat
             //TODO
             double qBase = qBaseInitial + stepQBase * qBaseMove;
 
-            // Package new qBase and heading into three
-            // RotX(pi/2)*RotY(-pi/2+heading)*RotX(-qBaseInit)
-            Eigen::Transform<double, 3, Eigen::Affine> baseTf = Eigen::Transform<double, 3, Eigen::Affine>::Identity();
-            baseTf.prerotate(Eigen::AngleAxisd(-qBase,Eigen::Vector3d::UnitX())).prerotate(Eigen::AngleAxisd(-M_PI/2+heading,Eigen::Vector3d::UnitY())).prerotate(Eigen::AngleAxisd(M_PI/2, Eigen::Vector3d::UnitX()));
-            Eigen::AngleAxisd aa(baseTf.matrix().block<3,3>(0,0));
-            Eigen::MatrixXd aaMatrix = aa.angle()*aa.axis();
-
-            randomPoseParams(0, 0) = aaMatrix(0);
-            randomPoseParams(1, 0) = aaMatrix(1);
+            randomPoseParams(0, 0) = heading;
+            randomPoseParams(1, 0) = qBase;
 
             // Values that supposedly do not change
             randomPoseParams(2, 0) = targetPose(0, 2);
@@ -609,7 +584,6 @@ Eigen::MatrixXd createNextSafeRandomPose(Eigen::MatrixXd initialPose, Eigen::Mat
             }
         }
 
-        //cout << randomPoseParams.transpose() << endl;
         // Run it through collision check with granulation, if it passes then return
         robot->setPositions(munzirToDart(randomPoseParams.transpose()));
         inCollision = isColliding(robot);
@@ -631,20 +605,19 @@ Eigen::MatrixXd createNextSafeRandomPose(Eigen::MatrixXd initialPose, Eigen::Mat
 }
 
 // // Create next random pose
-// TODO Need to create a random disturbance from initialPose
+// TODO Need to create a random disturbance from initialPose, why? lol
+// forgetting comments
 // TODO Need to set waist to constant value for each new one created
 Eigen::MatrixXd createNextSafeFixedWaistRandomPose(Eigen::MatrixXd initialPose, Eigen::MatrixXd targetPose, SkeletonPtr robot, Eigen::MatrixXd maxRandomSteps, int granulation, double targetBias, double jointMoveBias) {
     Eigen::MatrixXd randomPoseParams;
 
-    //double a = 0; //axis-angle1
-    //double b = 0; //axis-angle2
-    //double c = 0; //axis-angle3
-    //double d = 0; //x
-    //double e = 0; //y
-    //double f = 0; //z
-    //double g = 0; //qLWheel
-    //double h = 0; //qRWheel
-    //double k = 0; //qKinect
+    //double a = 0; //heading
+    //double b = 0; //qBase
+    //double c = 0; //x
+    //double d = 0; //y
+    //double e = 0; //z
+    //double f = 0; //qLWheel
+    //double g = 0; //qRWheel
 
     bool inCollision = true;
 
@@ -682,16 +655,12 @@ Eigen::MatrixXd createNextSafeFixedWaistRandomPose(Eigen::MatrixXd initialPose, 
 
             // TODO: Need to allow change for qBase
             // Find the target qBase and heading
-            robot->setPositions(munzirToDart(targetPose));
-            Eigen::MatrixXd robotBaseTfTarget = robot->getBodyNode(0)->getTransform().matrix();
-            double headingTarget = atan2(robotBaseTfTarget(0, 0) , -robotBaseTfTarget(1, 0));
-            double qBaseTarget = atan2(robotBaseTfTarget(0,1)*cos(headingTarget) + robotBaseTfTarget(1,1)*sin(headingTarget), robotBaseTfTarget(2,1));
+            double headingTarget = targetPose.coeff(0, 0);
+            double qBaseTarget = targetPose.coeff(0, 1);
 
-            // Convert the three to qBase and heading
-            robot->setPositions(munzirToDart(initialPose));
-            Eigen::MatrixXd robotBaseTf = robot->getBodyNode(0)->getTransform().matrix();
-            double headingInitial = atan2(robotBaseTf(0, 0) , -robotBaseTf(1, 0));
-            double qBaseInitial = atan2(robotBaseTf(0,1)*cos(headingInitial) + robotBaseTf(1,1)*sin(headingInitial), robotBaseTf(2,1));
+            // Find the initial qBase and heading
+            double headingInitial = initialPose.coeff(0, 0);
+            double qBaseInitial = initialPose.coeff(0, 1);
 
             // Change qBase and heading
             double stepHeading = fRand(0.00, maxRandomSteps(0, 0));
@@ -714,56 +683,24 @@ Eigen::MatrixXd createNextSafeFixedWaistRandomPose(Eigen::MatrixXd initialPose, 
             double heading = headingTarget;
             double qBase = qBaseInitial + stepQBase * qBaseMove;
 
-            // Package new qBase and heading into three
-            // RotX(pi/2)*RotY(-pi/2+heading)*RotX(-qBaseInit)
-            Eigen::Transform<double, 3, Eigen::Affine> baseTf = Eigen::Transform<double, 3, Eigen::Affine>::Identity();
-            baseTf.prerotate(Eigen::AngleAxisd(-qBase,Eigen::Vector3d::UnitX())).prerotate(Eigen::AngleAxisd(-M_PI/2+heading,Eigen::Vector3d::UnitY())).prerotate(Eigen::AngleAxisd(M_PI/2, Eigen::Vector3d::UnitX()));
-            Eigen::AngleAxisd aa(baseTf.matrix().block<3,3>(0,0));
-            Eigen::MatrixXd aaMatrix = aa.angle()*aa.axis();
-
-            randomPoseParams(0, 0) = aaMatrix(0);
-            randomPoseParams(1, 0) = aaMatrix(1);
-            randomPoseParams(2, 0) = aaMatrix(2);
-
+            randomPoseParams(0, 0) = heading;
+            randomPoseParams(1, 0) = qBase;
 
             // Values that supposedly do not change
+            randomPoseParams(2, 0) = targetPose(0, 2);
             randomPoseParams(3, 0) = targetPose(0, 3);
             randomPoseParams(4, 0) = targetPose(0, 4);
             randomPoseParams(5, 0) = targetPose(0, 5);
             randomPoseParams(6, 0) = targetPose(0, 6);
-            randomPoseParams(7, 0) = targetPose(0, 7);
 
-            int index = 8;
+            int index = 7;
 
             //TODO: Need to allow change for waist and torso
-            // Loop through adding the rest of the values (qWaist, qTorso)
-            int ii = 0;
-            for (;ii < 2; ii++) {
+            // Loop through adding the rest of the values (qWaist, qTorso, qArms)
+            for (int ii = 0; ii < sizeof(lowerLimit)/sizeof(lowerLimit[0]); ii++) {
                 // TODO Find closest direction
 
-                double step = fRand(0.00, maxRandomSteps(0, index - 8 + 1));
-                if (step > abs(targetPose(0, index) - initialPose(0, index))) {
-                    step = abs(targetPose(0, index) - initialPose(0, index));
-                }
-
-                if (initialPose(0, index) > targetPose(0, index)) {
-                    step *= -1;
-                }
-
-                randomPoseParams(index, 0) += step * jointMove[ii];
-                index++;
-            }
-
-            // Add qKinect
-            randomPoseParams(index, 0) = targetPose(0, index);
-            index++;
-
-            //TODO: Need to allow change for arms
-            // Add the rest of the values (qArms)
-            for (;ii < sizeof(lowerLimit)/sizeof(lowerLimit[0]); ii++) {
-                // TODO Find closest direction
-
-                double step = fRand(0.00, maxRandomSteps(0, index - 8 + 1));
+                double step = fRand(0.00, maxRandomSteps(0, index - 7 + 1));
                 if (step > abs(targetPose(0, index) - initialPose(0, index))) {
                     step = abs(targetPose(0, index) - initialPose(0, index));
                 }
@@ -801,16 +738,12 @@ Eigen::MatrixXd createNextSafeFixedWaistRandomPose(Eigen::MatrixXd initialPose, 
 
             // Add the default values first
             // TODO: Need to allow change for qBase
-            robot->setPositions(munzirToDart(targetPose));
-            Eigen::MatrixXd robotBaseTfTarget = robot->getBodyNode(0)->getTransform().matrix();
-            double headingTarget = atan2(robotBaseTfTarget(0, 0) , -robotBaseTfTarget(1, 0));
-            double qBaseTarget = atan2(robotBaseTfTarget(0,1)*cos(headingTarget) + robotBaseTfTarget(1,1)*sin(headingTarget), robotBaseTfTarget(2,1));
+            double headingTarget = targetPose.coeff(0, 0);
+            double qBaseTarget = targetPose.coeff(0, 1);
 
-            // Convert the three to qBase and heading
-            robot->setPositions(munzirToDart(initialPose));
-            Eigen::MatrixXd robotBaseTf = robot->getBodyNode(0)->getTransform().matrix();
-            double headingInitial = atan2(robotBaseTf(0, 0) , -robotBaseTf(1, 0));
-            double qBaseInitial = atan2(robotBaseTf(0,1)*cos(headingInitial) + robotBaseTf(1,1)*sin(headingInitial), robotBaseTf(2,1));
+            // Add the initial qBase and heading
+            double headingInitial = initialPose.coeff(0, 0);
+            double qBaseInitial = initialPose.coeff(0, 1);
 
             // Change qBase and heading
             double stepHeading = fRand(0.00, maxRandomSteps(0, 0));
@@ -827,53 +760,24 @@ Eigen::MatrixXd createNextSafeFixedWaistRandomPose(Eigen::MatrixXd initialPose, 
             double heading = headingTarget;
             double qBase = qBaseInitial + stepQBase * qBaseMove;
 
-            // Package new qBase and heading into three
-            // RotX(pi/2)*RotY(-pi/2+heading)*RotX(-qBaseInit)
-            Eigen::Transform<double, 3, Eigen::Affine> baseTf = Eigen::Transform<double, 3, Eigen::Affine>::Identity();
-            baseTf.prerotate(Eigen::AngleAxisd(-qBase,Eigen::Vector3d::UnitX())).prerotate(Eigen::AngleAxisd(-M_PI/2+heading,Eigen::Vector3d::UnitY())).prerotate(Eigen::AngleAxisd(M_PI/2, Eigen::Vector3d::UnitX()));
-            Eigen::AngleAxisd aa(baseTf.matrix().block<3,3>(0,0));
-            Eigen::MatrixXd aaMatrix = aa.angle()*aa.axis();
-
-            randomPoseParams(0, 0) = aaMatrix(0);
-            randomPoseParams(1, 0) = aaMatrix(1);
-            randomPoseParams(2, 0) = aaMatrix(2);
-
+            randomPoseParams(0, 0) = heading;
+            randomPoseParams(1, 0) = qBase;
 
             // Values that supposedly do not change
+            randomPoseParams(2, 0) = targetPose(0, 2);
             randomPoseParams(3, 0) = targetPose(0, 3);
             randomPoseParams(4, 0) = targetPose(0, 4);
             randomPoseParams(5, 0) = targetPose(0, 5);
             randomPoseParams(6, 0) = targetPose(0, 6);
-            randomPoseParams(7, 0) = targetPose(0, 7);
 
-            int index = 8;
+            int index = 7;
 
             //TODO: Need to allow change for waist and torso
-            // Loop through adding the rest of the values (qWaist, qTorso)
-            int ii = 0;
-            for (;ii < 2; ii++) {
+            // Loop through adding the rest of the values (qWaist, qTorso, qArms)
+            for (int ii = 0; ii < sizeof(lowerLimit)/sizeof(lowerLimit[0]); ii++) {
                 // TODO Find closest direction
 
-                double step = fRand(0.00, maxRandomSteps(0, index - 8 + 1));
-
-                if (initialPose(0, index) > targetPose(0, index)) {
-                    step *= -1;
-                }
-
-                randomPoseParams(index, 0) += step * jointMove[ii];
-                index++;
-            }
-
-            // Add qKinect
-            randomPoseParams(index, 0) = targetPose(0, index);
-            index++;
-
-            //TODO: Need to allow change for arms
-            // Add the rest of the values (qArms)
-            for (;ii < sizeof(lowerLimit)/sizeof(lowerLimit[0]); ii++) {
-                // TODO Find closest direction
-
-                double step = fRand(0.00, maxRandomSteps(0, index - 8 + 1));
+                double step = fRand(0.00, maxRandomSteps(0, index - 7 + 1));
 
                 if (initialPose(0, index) > targetPose(0, index)) {
                     step *= -1;
@@ -907,7 +811,6 @@ Eigen::MatrixXd createNextSafeFixedWaistRandomPose(Eigen::MatrixXd initialPose, 
         //string isIniCol = to_string(inCollision);
         //cout << "Ini is col" + isIniCol << endl;
 
-        //cout << randomPoseParams.transpose() << endl;
         // Run it through collision check with granulation, if it passes then return
 
         robot->setPositions(munzirToDart(randomPoseParams.transpose()));
@@ -932,7 +835,7 @@ Eigen::MatrixXd createNextSafeFixedWaistRandomPose(Eigen::MatrixXd initialPose, 
 bool moveWaistOnly(Eigen::MatrixXd startPose, double targetWaistPosition, Eigen::MatrixXd *nextPose, SkeletonPtr robot) {
     Eigen::MatrixXd movingWaistPose = startPose;
     double waistStep = 0.010; //radians
-    if (movingWaistPose.col(8)(0, 0) > targetWaistPosition) {
+    if (movingWaistPose.col(7)(0, 0) > targetWaistPosition) {
         waistStep *= -1;
     }
 
@@ -942,11 +845,11 @@ bool moveWaistOnly(Eigen::MatrixXd startPose, double targetWaistPosition, Eigen:
     }
 
     // Move the waist incrementally to see if collision happens
-    while (movingWaistPose.col(8)(0, 0) - targetWaistPosition != 0) {
-        if (abs(movingWaistPose.col(8)(0, 0) - targetWaistPosition) < abs(waistStep)) {
-            movingWaistPose.col(8)(0, 0) = targetWaistPosition;
+    while (movingWaistPose.col(7)(0, 0) - targetWaistPosition != 0) {
+        if (abs(movingWaistPose.col(7)(0, 0) - targetWaistPosition) < abs(waistStep)) {
+            movingWaistPose.col(7)(0, 0) = targetWaistPosition;
         } else {
-            movingWaistPose.col(8)(0, 0) += waistStep;
+            movingWaistPose.col(7)(0, 0) += waistStep;
         }
         robot->setPositions(munzirToDart(movingWaistPose));
         if (isColliding(robot)) {
@@ -971,11 +874,12 @@ bool closeEnough(Eigen::MatrixXd pose1, Eigen::MatrixXd pose2, double tolerance)
 }
 
 // // Check if two poses are the same (close enough)
-// Waist is ignored (aa1, aa2, aa3, x, y, z, qLWheel, qRWheel, qWaist, qTorso, etc.
+// Waist is ignored (heading, qBase, x, y, z, qLWheel, qRWheel, qWaist, qTorso, etc.
 bool allButWaistCloseEnough(Eigen::MatrixXd pose1, Eigen::MatrixXd pose2, double tolerance) {
     pose1.col(8)(0, 0) = 0;
     pose2.col(8)(0, 0) = 0;
-    //TODO
+    //TODO oh so we can put the posesintree and the norm on one line to print it
+    //nicely
     double poseNormed = (pose1 - pose2).norm();
     cout << "\rNorm " << poseNormed;
     for (int i = 0; i < pose1.cols(); i++) {
