@@ -81,7 +81,7 @@ int main() {
     string inputPosesFilename = "../random10anglebalance0.001000tolsafe.txt";
 
     // INPUT on below line (absolute robot path)
-    string fullRobotPath = "/home/apatel435/Desktop/WholeBodyControlAttempt1/09-URDF/Krang/Krang.urdf";
+    string fullRobotPath = "/home/apatel435/Desktop/WholeBodyControlAttempt1/09-URDF/Krang/KrangCollision.urdf";
 
     // INPUT on below line (to move the waist independently or not)
     bool fixedWaist = true;
