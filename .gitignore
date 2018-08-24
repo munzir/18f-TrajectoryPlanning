@@ -7,23 +7,13 @@
 # Readme
 !README.md
 
-# file_ops
-!file_ops.hpp
-!file_ops.cpp
-
 # rrt
 !/rrt/
 /rrt/*
 !/rrt/rrt.cpp
 !/rrt/CMakeLists.txt
-# rfinalSet pose file
-!/rrt/rfinalSet.txt
 # rfinalSet trajectories
 !/rrt/poseTrajectoriesrfinalSet/
-
-# collision
-!/rrt/collision.hpp
-!/rrt/collision.cpp
 
 # reorder
 !/reorder_poses/
