@@ -84,6 +84,7 @@ int main() {
     string fullRobotPath = "/home/apatel435/Desktop/WholeBodyControlAttempt1/09-URDF/Krang/KrangCollision.urdf";
 
     // INPUT on below line (to move the waist independently or not)
+    //bool fixedWaist = false;
     bool fixedWaist = true;
 
     // INPUT on below line (branching factor for RRT) (how many children poses
@@ -96,9 +97,9 @@ int main() {
     // INPUT on below line (step size for random (radians))
     //double randomStep = 0.500;
     double randomStep = 2.000;
-    Eigen::MatrixXd maxRandomSteps(1, 18);
+    Eigen::MatrixXd maxRandomSteps(1, 17);
     maxRandomSteps << 1, // qBase
-                      1, 1, 1, // qWaist, qTorso, qKinect
+                         1, 1, // qWaist, qTorso
           1, 1, 1, 1, 1, 1, 1, // qRArm0, ..., qRArm6 (from shoulder to the last joint)
           1, 1, 1, 1, 1, 1, 1; // qRArm0, ..., qRArm6 (from shoulder to the last joint)
     maxRandomSteps = randomStep * maxRandomSteps;
