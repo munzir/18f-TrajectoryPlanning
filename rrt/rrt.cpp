@@ -318,7 +318,7 @@ Eigen::MatrixXd createFixedWaistTrajectory(Eigen::MatrixXd startPose, Eigen::Mat
 
     // Move the safe pose only via waist to final waist position
     nextInterPoseParent = trajectoryTree.row((posesInTree) - 1);
-    bool waistMovedSuccessfully = moveWaistOnly(nextInterPoseParent, endPose.col(8)(0, 0), &nextInterPose, robot);
+    bool waistMovedSuccessfully = moveWaistOnly(nextInterPoseParent, endPose.col(7)(0, 0), &nextInterPose, robot);
     posesInTree++;
 
     if (!waistMovedSuccessfully) {
@@ -642,9 +642,9 @@ Eigen::MatrixXd createNextSafeFixedWaistRandomPose(Eigen::MatrixXd initialPose, 
             //cout << "Going to Target" << endl;
 
             int qBaseMove = 0;
-            for (int i = 0; i < 17; i++) {
+            for (int i = 0; i < 18; i++) {
                 double jointMoveProb = fRand(0, 1);
-                if (i == 16 && jointMoveProb <= jointMoveBias) {
+                if (i == 17 && jointMoveProb <= jointMoveBias) {
                     qBaseMove = 1;
                 } else {
                     if (jointMoveProb <= jointMoveBias) {
@@ -718,9 +718,9 @@ Eigen::MatrixXd createNextSafeFixedWaistRandomPose(Eigen::MatrixXd initialPose, 
             //cout << "Going Random" << endl;
 
             int qBaseMove = 1;
-            for (int i = 0; i < 17; i++) {
+            for (int i = 0; i < 18; i++) {
                 double jointMoveProb = fRand(0, 3);
-                if (i == 16) {
+                if (i == 17) {
                     if (jointMoveProb < 1) {
                         qBaseMove = -1;
                     } else if (jointMoveProb < 2) {
@@ -801,8 +801,8 @@ Eigen::MatrixXd createNextSafeFixedWaistRandomPose(Eigen::MatrixXd initialPose, 
         // Fixed now
         // Phew what a bug
 
-        randomPoseParams(8, 0) = initialPose(0, 8);
-        //randomPoseParams(8, 0) = targetPose(0, 8);
+        randomPoseParams(7, 0) = initialPose(0, 7);
+        //randomPoseParams(7, 0) = targetPose(0, 7);
 
         // TODO fix the 69 to 70 Prob
         // Mystery might be the fact that it just takes a while
@@ -877,8 +877,8 @@ bool closeEnough(Eigen::MatrixXd pose1, Eigen::MatrixXd pose2, double tolerance)
 // // Check if two poses are the same (close enough)
 // Waist is ignored (heading, qBase, x, y, z, qLWheel, qRWheel, qWaist, qTorso, etc.
 bool allButWaistCloseEnough(Eigen::MatrixXd pose1, Eigen::MatrixXd pose2, double tolerance) {
-    pose1.col(8)(0, 0) = 0;
-    pose2.col(8)(0, 0) = 0;
+    pose1.col(7)(0, 0) = 0;
+    pose2.col(7)(0, 0) = 0;
     //TODO oh so we can put the posesintree and the norm on one line to print it
     //nicely
     double poseNormed = (pose1 - pose2).norm();
