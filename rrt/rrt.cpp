@@ -78,7 +78,8 @@ int main() {
     //string inputPosesFilename = "../orderedrandom10fullbalance0.001000tolsafe.txt";
     //string inputPosesFilename = "../sparsedorderedfinalSet.txt";
     //string inputPosesFilename = "../rfinalSet.txt";
-    string inputPosesFilename = "../random10anglebalance0.001000tolsafe.txt";
+    //string inputPosesFilename = "../random10anglebalance0.001000tolsafe.txt";
+    string inputPosesFilename = "../interposeTraj171-172munzir.txt";
 
     // INPUT on below line (absolute robot path)
     string fullRobotPath = "/home/apatel435/Desktop/WholeBodyControlAttempt1/09-URDF/Krang/KrangCollision.urdf";
@@ -590,7 +591,7 @@ Eigen::MatrixXd createNextSafeRandomPose(Eigen::MatrixXd initialPose, Eigen::Mat
         inCollision = isColliding(robot);
         if (!inCollision) {
             for (int g = 1; g < granulation + 1; g++) {
-                Eigen::MatrixXd nextStepPose = initialPose + (randomPoseParams.transpose() - initialPose) * (g/granulation);
+                Eigen::MatrixXd nextStepPose = initialPose + (randomPoseParams.transpose() - initialPose) * (((double) g)/granulation);
                 robot->setPositions(munzirToDart(nextStepPose));
                 inCollision = isColliding(robot);
                 if (inCollision == true) {
@@ -818,7 +819,7 @@ Eigen::MatrixXd createNextSafeFixedWaistRandomPose(Eigen::MatrixXd initialPose, 
         inCollision = isColliding(robot);
         if (!inCollision) {
             for (int g = 1; g < granulation + 1; g++) {
-                Eigen::MatrixXd nextStepPose = initialPose + (randomPoseParams.transpose() - initialPose) * (g/granulation);
+                Eigen::MatrixXd nextStepPose = initialPose + (randomPoseParams.transpose() - initialPose) * (((double) g)/granulation);
                 robot->setPositions(munzirToDart(nextStepPose));
                 inCollision = isColliding(robot);
                 if (inCollision == true) {
