@@ -78,15 +78,16 @@ int main() {
     //string inputPosesFilename = "../orderedrandom10fullbalance0.001000tolsafe.txt";
     //string inputPosesFilename = "../sparsedorderedfinalSet.txt";
     //string inputPosesFilename = "../rfinalSet.txt";
-    //string inputPosesFilename = "../random10anglebalance0.001000tolsafe.txt";
-    string inputPosesFilename = "../interposeTraj171-172munzir.txt";
+    //string inputPosesFilename = "../random20000anglebalance0.001000tolsafe.txt";
+    string inputPosesFilename = "../random10anglebalance0.001000tolsafe.txt";
+    //string inputPosesFilename = "../pose171-172munzir.txt";
 
     // INPUT on below line (absolute robot path)
     string fullRobotPath = "/home/apatel435/Desktop/WholeBodyControlAttempt1/09-URDF/Krang/KrangCollision.urdf";
 
     // INPUT on below line (to move the waist independently or not)
-    //bool fixedWaist = false;
-    bool fixedWaist = true;
+    bool fixedWaist = false;
+    //bool fixedWaist = true;
 
     // INPUT on below line (branching factor for RRT) (how many children poses
     // for each parent (basically how wide to explore)
@@ -103,6 +104,8 @@ int main() {
                          1, 1, // qWaist, qTorso
           1, 1, 1, 1, 1, 1, 1, // qRArm0, ..., qRArm6 (from shoulder to the last joint)
           1, 1, 1, 1, 1, 1, 1; // qRArm0, ..., qRArm6 (from shoulder to the last joint)
+          //2, 2, 2, 2, 2, 2, 2, // qRArm0, ..., qRArm6 (from shoulder to the last joint)
+          //2, 2, 2, 2, 2, 2, 2; // qRArm0, ..., qRArm6 (from shoulder to the last joint)
     maxRandomSteps = randomStep * maxRandomSteps;
 
     // INPUT on below line (granulation) (how many steps to check in
@@ -111,9 +114,11 @@ int main() {
     //This assumes the time for each joint going from its start to end pos is
     //the same irrespective of its distance
     int granulation = 100;
+    //int granulation = 1000;
+    //int granulation = 5;
 
     // INPUT on below line (target bias in decimal)
-    double targetBias = 0.90;
+    double targetBias = 0.80;
 
     // INPUT on below line (whether to move the joint or not during the next
     // pose)
@@ -164,7 +169,12 @@ Eigen::MatrixXd createAllTrajectories(Eigen::MatrixXd inputPoses, string fullRob
     //TODO what is upper limit on pose trajectory?
     //I guess i can just write it out directly
     Eigen::MatrixXd allInterPoseTraj = inputPoses.row(0);
-    for (int pose = 0; pose < inputPoses.rows() - 1; pose++) {
+    // 2-3 troublesome right shoulder not moving
+    // 3-4 troublesome left shoulder not moving
+    // 6-7 troblesome right should not moving
+    // 7-8 troblesome right should not moving
+    for (int pose = 6; pose < inputPoses.rows() - 1; pose++) {
+    //for (int pose = 0; pose < inputPoses.rows() - 1; pose++) {
         cout << "Trajectory from " << pose + 1 << " to " << pose + 2 << endl;
         Eigen::MatrixXd interPoseTraj;
         if (fixedWaist) {
@@ -431,6 +441,8 @@ Eigen::MatrixXd createNextSafeRandomPose(Eigen::MatrixXd initialPose, Eigen::Mat
 
         if (targetBiasFlag == true) {
 
+        while (inCollision) {
+            randomPoseParams = initialPose.transpose();
             //cout << "Going to Target" << endl;
 
             int qBaseMove = 0;
@@ -506,8 +518,27 @@ Eigen::MatrixXd createNextSafeRandomPose(Eigen::MatrixXd initialPose, Eigen::Mat
                 randomPoseParams(index, 0) += step * jointMove[ii];
                 index++;
             }
+
+            // Run it through collision check with granulation, if it passes then return
+            robot->setPositions(munzirToDart(randomPoseParams.transpose()));
+            inCollision = isColliding(robot);
+            if (!inCollision) {
+                for (int g = 1; g < granulation + 1; g++) {
+                    Eigen::MatrixXd nextStepPose = initialPose + (randomPoseParams.transpose() - initialPose) * (((double) g)/granulation);
+                    robot->setPositions(munzirToDart(nextStepPose));
+                    inCollision = isColliding(robot);
+                    if (inCollision == true) {
+                        break;
+                    }
+                }
+            }
+            //cout << "Pose is colliding" << endl;
+        }
+
         } else {
 
+        while (inCollision) {
+            randomPoseParams = initialPose.transpose();
             //cout << "Going Random" << endl;
 
             int qBaseMove = 1;
@@ -528,6 +559,8 @@ Eigen::MatrixXd createNextSafeRandomPose(Eigen::MatrixXd initialPose, Eigen::Mat
                         jointMove[i] = 1;
                     }
                 }
+                // TODO
+                //if (i == 10) {cout << jointMove[i] << endl;}
             }
 
             // Add the default values first
@@ -573,17 +606,35 @@ Eigen::MatrixXd createNextSafeRandomPose(Eigen::MatrixXd initialPose, Eigen::Mat
                 // TODO Find closest direction
 
                 double step = fRand(0.00, maxRandomSteps(0, index - 7 + 1));
-                if (step > abs(targetPose(0, index) - initialPose(0, index))) {
-                    step = abs(targetPose(0, index) - initialPose(0, index));
-                }
+                //if (step > abs(targetPose(0, index) - initialPose(0, index))) {
+                //    step = abs(targetPose(0, index) - initialPose(0, index));
+                //}
 
-                if (initialPose(0, index) > targetPose(0, index)) {
-                    step *= -1;
-                }
+                //if (initialPose(0, index) > targetPose(0, index)) {
+                //    step *= -1;
+                //}
 
                 randomPoseParams(index, 0) += step * jointMove[ii];
+                //if (ii == 10) {cout << randomPoseParams(index, 0) << endl;}
+                //if (ii == 2) {cout << randomPoseParams(index, 0) << endl;}
                 index++;
             }
+
+            // Run it through collision check with granulation, if it passes then return
+            robot->setPositions(munzirToDart(randomPoseParams.transpose()));
+            inCollision = isColliding(robot);
+            if (!inCollision) {
+                for (int g = 1; g < granulation + 1; g++) {
+                    Eigen::MatrixXd nextStepPose = initialPose + (randomPoseParams.transpose() - initialPose) * (((double) g)/granulation);
+                    robot->setPositions(munzirToDart(nextStepPose));
+                    inCollision = isColliding(robot);
+                    if (inCollision == true) {
+                        break;
+                    }
+                }
+            }
+            //cout << "Pose is colliding" << endl;
+        }
         }
 
         // Run it through collision check with granulation, if it passes then return
@@ -600,9 +651,9 @@ Eigen::MatrixXd createNextSafeRandomPose(Eigen::MatrixXd initialPose, Eigen::Mat
             }
         }
         //cout << "Pose is colliding" << endl;
-
     }
 
+    cout << endl << randomPoseParams.transpose() << endl;
     return randomPoseParams.transpose();
 }
 
