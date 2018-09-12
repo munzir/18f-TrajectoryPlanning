@@ -86,8 +86,8 @@ int main() {
     string fullRobotPath = "/home/apatel435/Desktop/WholeBodyControlAttempt1/09-URDF/Krang/KrangCollision.urdf";
 
     // INPUT on below line (to move the waist independently or not)
-    bool fixedWaist = false;
-    //bool fixedWaist = true;
+    //bool fixedWaist = false;
+    bool fixedWaist = true;
 
     // INPUT on below line (branching factor for RRT) (how many children poses
     // for each parent (basically how wide to explore)
@@ -173,8 +173,8 @@ Eigen::MatrixXd createAllTrajectories(Eigen::MatrixXd inputPoses, string fullRob
     // 3-4 troublesome left shoulder not moving
     // 6-7 troblesome right should not moving
     // 7-8 troblesome right should not moving
-    for (int pose = 6; pose < inputPoses.rows() - 1; pose++) {
-    //for (int pose = 0; pose < inputPoses.rows() - 1; pose++) {
+    //for (int pose = 6; pose < inputPoses.rows() - 1; pose++) {
+    for (int pose = 0; pose < inputPoses.rows() - 1; pose++) {
         cout << "Trajectory from " << pose + 1 << " to " << pose + 2 << endl;
         Eigen::MatrixXd interPoseTraj;
         if (fixedWaist) {
@@ -653,7 +653,7 @@ Eigen::MatrixXd createNextSafeRandomPose(Eigen::MatrixXd initialPose, Eigen::Mat
         //cout << "Pose is colliding" << endl;
     }
 
-    cout << endl << randomPoseParams.transpose() << endl;
+    //cout << endl << randomPoseParams.transpose() << endl;
     return randomPoseParams.transpose();
 }
 
