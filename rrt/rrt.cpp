@@ -12,6 +12,7 @@
 #include <iostream>
 #include <fstream>
 
+#include "../../18h-Util/balance.hpp"
 #include "../../18h-Util/collision.hpp"
 #include "../../18h-Util/convert_pose_formats.hpp"
 #include "../../18h-Util/file_ops.hpp"
@@ -39,13 +40,13 @@ double upperLimit[] = {2.88, 1.57, pi, bendLimit, pi, bendLimit, pi, bendLimit, 
 
 // Function Prototypes
 // // Find all interpose trajectories
-Eigen::MatrixXd createAllTrajectories(Eigen::MatrixXd inputPoses, string fullRobotPath, int branchFactor, double tolerance, Eigen::MatrixXd maxRandomSteps, int granulation, double targetBias, double jointMoveBias, bool fixedWaist);
+Eigen::MatrixXd createAllTrajectories(Eigen::MatrixXd inputPoses, string fullRobotPath, int branchFactor, double tolerance, Eigen::MatrixXd maxRandomSteps, int granulation, double targetBias, double jointMoveBias, bool fixedWaist, bool qBaseBalancing);
 
 // // Find interpose trajectory
-Eigen::MatrixXd createTrajectory(Eigen::MatrixXd startPose, Eigen::MatrixXd endPose, SkeletonPtr robot, int branchFactor, double tolerance, Eigen::MatrixXd maxRandomSteps, int granulation, double targetBias, double jointMoveBias);
+Eigen::MatrixXd createTrajectory(Eigen::MatrixXd startPose, Eigen::MatrixXd endPose, SkeletonPtr robot, int branchFactor, double tolerance, Eigen::MatrixXd maxRandomSteps, int granulation, double targetBias, double jointMoveBias, bool qBaseBalancing);
 
 // // Find fixed waist interpose trajectory
-Eigen::MatrixXd createFixedWaistTrajectory(Eigen::MatrixXd startPose, Eigen::MatrixXd endPose, SkeletonPtr robot, int branchFactor, double tolerance, Eigen::MatrixXd maxRandomSteps, int granulation, double targetBias, double jointMoveBias);
+Eigen::MatrixXd createFixedWaistTrajectory(Eigen::MatrixXd startPose, Eigen::MatrixXd endPose, SkeletonPtr robot, int branchFactor, double tolerance, Eigen::MatrixXd maxRandomSteps, int granulation, double targetBias, double jointMoveBias, bool qBaseBalancing);
 
 // // Prune interpose trajectory
 Eigen::MatrixXd pruneTrajectory(Eigen::MatrixXd trajectory);
@@ -54,10 +55,10 @@ Eigen::MatrixXd pruneTrajectory(Eigen::MatrixXd trajectory);
 Eigen::MatrixXd smoothTrajectory(Eigen::MatrixXd trajectory);
 
 // // Create next safe random pose
-Eigen::MatrixXd createNextSafeRandomPose(Eigen::MatrixXd initialPose, Eigen::MatrixXd targetPose, SkeletonPtr robot, Eigen::MatrixXd maxRandomSteps, int granulation, double targetBias, double jointMoveBias);
+Eigen::MatrixXd createNextSafeRandomPose(Eigen::MatrixXd initialPose, Eigen::MatrixXd targetPose, SkeletonPtr robot, Eigen::MatrixXd maxRandomSteps, int granulation, double targetBias, double jointMoveBias, bool qBaseBalancing);
 
 // // Create next safe fixed waist random pose
-Eigen::MatrixXd createNextSafeFixedWaistRandomPose(Eigen::MatrixXd initialPose, Eigen::MatrixXd targetPose, SkeletonPtr robot, Eigen::MatrixXd maxRandomSteps, int granulation, double targetBias, double jointMoveBias);
+Eigen::MatrixXd createNextSafeFixedWaistRandomPose(Eigen::MatrixXd initialPose, Eigen::MatrixXd targetPose, SkeletonPtr robot, Eigen::MatrixXd maxRandomSteps, int granulation, double targetBias, double jointMoveBias, bool qBaseBalancing);
 
 // // Move just the waist
 bool moveWaistOnly(Eigen::MatrixXd startPose, double targetWaistPosition, Eigen::MatrixXd *nextPose, SkeletonPtr robot);
@@ -88,6 +89,10 @@ int main() {
     // INPUT on below line (to move the waist independently or not)
     //bool fixedWaist = false;
     bool fixedWaist = true;
+
+    // INPUT on below line (flag to dynamically move qBase at every interpose
+    // such that it is balanced)
+    bool qBaseBalancing = true;
 
     // INPUT on below line (branching factor for RRT) (how many children poses
     // for each parent (basically how wide to explore)
@@ -139,7 +144,7 @@ int main() {
     }
 
     cout << "Generating Trajectories ...\n";
-    Eigen::MatrixXd allTrajectories = createAllTrajectories(inputPoses, fullRobotPath, branchFactor, tolerance, maxRandomSteps, granulation, targetBias, jointMoveBias, fixedWaist);
+    Eigen::MatrixXd allTrajectories = createAllTrajectories(inputPoses, fullRobotPath, branchFactor, tolerance, maxRandomSteps, granulation, targetBias, jointMoveBias, fixedWaist, qBaseBalancing);
     cout << "|-> Done\n";
 
     // Write test xCOM values to file
@@ -161,7 +166,7 @@ int main() {
 
 // // Find all interpose trajectories
 //TODO
-Eigen::MatrixXd createAllTrajectories(Eigen::MatrixXd inputPoses, string fullRobotPath, int branchFactor, double tolerance, Eigen::MatrixXd maxRandomSteps, int granulation, double targetBias, double jointMoveBias, bool fixedWaist) {
+Eigen::MatrixXd createAllTrajectories(Eigen::MatrixXd inputPoses, string fullRobotPath, int branchFactor, double tolerance, Eigen::MatrixXd maxRandomSteps, int granulation, double targetBias, double jointMoveBias, bool fixedWaist, bool qBaseBalancing) {
     // Instantiate full robot
     DartLoader loader;
     SkeletonPtr robot = loader.parseSkeleton(fullRobotPath);
@@ -169,18 +174,13 @@ Eigen::MatrixXd createAllTrajectories(Eigen::MatrixXd inputPoses, string fullRob
     //TODO what is upper limit on pose trajectory?
     //I guess i can just write it out directly
     Eigen::MatrixXd allInterPoseTraj = inputPoses.row(0);
-    // 2-3 troublesome right shoulder not moving
-    // 3-4 troublesome left shoulder not moving
-    // 6-7 troblesome right should not moving
-    // 7-8 troblesome right should not moving
-    //for (int pose = 6; pose < inputPoses.rows() - 1; pose++) {
     for (int pose = 0; pose < inputPoses.rows() - 1; pose++) {
         cout << "Trajectory from " << pose + 1 << " to " << pose + 2 << endl;
         Eigen::MatrixXd interPoseTraj;
         if (fixedWaist) {
-            interPoseTraj = createFixedWaistTrajectory(inputPoses.row(pose), inputPoses.row(pose + 1), robot, branchFactor, tolerance, maxRandomSteps, granulation, targetBias, jointMoveBias);
+            interPoseTraj = createFixedWaistTrajectory(inputPoses.row(pose), inputPoses.row(pose + 1), robot, branchFactor, tolerance, maxRandomSteps, granulation, targetBias, jointMoveBias, qBaseBalancing);
         } else {
-            interPoseTraj = createTrajectory(inputPoses.row(pose), inputPoses.row(pose + 1), robot, branchFactor, tolerance, maxRandomSteps, granulation, targetBias, jointMoveBias);
+            interPoseTraj = createTrajectory(inputPoses.row(pose), inputPoses.row(pose + 1), robot, branchFactor, tolerance, maxRandomSteps, granulation, targetBias, jointMoveBias, qBaseBalancing);
         }
         Eigen::MatrixXd prunedInterPoseTraj = pruneTrajectory(interPoseTraj);
         Eigen::MatrixXd smoothedInterPoseTraj = smoothTrajectory(prunedInterPoseTraj);
@@ -204,7 +204,7 @@ Eigen::MatrixXd createAllTrajectories(Eigen::MatrixXd inputPoses, string fullRob
 
 // // Find interpose trajectory
 //TODO
-Eigen::MatrixXd createTrajectory(Eigen::MatrixXd startPose, Eigen::MatrixXd endPose, SkeletonPtr robot, int branchFactor, double tolerance, Eigen::MatrixXd maxRandomSteps, int granulation, double targetBias, double jointMoveBias) {
+Eigen::MatrixXd createTrajectory(Eigen::MatrixXd startPose, Eigen::MatrixXd endPose, SkeletonPtr robot, int branchFactor, double tolerance, Eigen::MatrixXd maxRandomSteps, int granulation, double targetBias, double jointMoveBias, bool qBaseBalancing) {
     // Need to create the tree in this method
     // root is startPose
     // goal is endPose
@@ -225,7 +225,7 @@ Eigen::MatrixXd createTrajectory(Eigen::MatrixXd startPose, Eigen::MatrixXd endP
 
         //cout << "Parent" << posesInTree/branchFactor << endl;
         cout << "PosesInTree" << posesInTree << endl;
-        nextInterPose = createNextSafeRandomPose(nextInterPoseParent, endPose, robot, maxRandomSteps, granulation, targetBias, jointMoveBias);
+        nextInterPose = createNextSafeRandomPose(nextInterPoseParent, endPose, robot, maxRandomSteps, granulation, targetBias, jointMoveBias, qBaseBalancing);
         // TODO Add it to eigen Matrix in a better fashion
         Eigen::MatrixXd trajectoryTreeTmp(trajectoryTree.rows() + 1, trajectoryTree.cols());
         trajectoryTreeTmp << trajectoryTree,
@@ -267,7 +267,7 @@ Eigen::MatrixXd createTrajectory(Eigen::MatrixXd startPose, Eigen::MatrixXd endP
 
 // // Find fixed waist interpose trajectory
 //TODO
-Eigen::MatrixXd createFixedWaistTrajectory(Eigen::MatrixXd startPose, Eigen::MatrixXd endPose, SkeletonPtr robot, int branchFactor, double tolerance, Eigen::MatrixXd maxRandomSteps, int granulation, double targetBias, double jointMoveBias) {
+Eigen::MatrixXd createFixedWaistTrajectory(Eigen::MatrixXd startPose, Eigen::MatrixXd endPose, SkeletonPtr robot, int branchFactor, double tolerance, Eigen::MatrixXd maxRandomSteps, int granulation, double targetBias, double jointMoveBias, bool qBaseBalancing) {
     // Need to create the tree in this method
     // root is startPose
     // goal is endPose
@@ -299,6 +299,17 @@ Eigen::MatrixXd createFixedWaistTrajectory(Eigen::MatrixXd startPose, Eigen::Mat
          0, 0, 0, 0, 0, 0, 0, // qRArm0, ..., qRArm6 (from shoulder to the last joint)
          0, 0, 0, 0, 0, 0, 0; // qRArm0, ..., qRArm6 (from shoulder to the last joint)
 
+    //TODO
+    waistSafePose.transposeInPlace();
+
+    // Make sure the waistSafePose is balanced
+    robot->setPositions(munzirToDart(waistSafePose.transpose()));
+    waistSafePose = angleBalancePose(robot, waistSafePose);
+    robot->setPositions(munzirToDart(waistSafePose.transpose()));
+
+    waistSafePose.transposeInPlace();
+    cout << "Waist Safe" << isColliding(robot) << endl;
+
     bool reachedGoal = false;
     int posesInTree = 1;
 
@@ -311,7 +322,7 @@ Eigen::MatrixXd createFixedWaistTrajectory(Eigen::MatrixXd startPose, Eigen::Mat
         //cout << "Parent" << posesInTree/branchFactor << endl;
         cout << "PosesInTree" << posesInTree << endl;
 
-        nextInterPose = createNextSafeFixedWaistRandomPose(nextInterPoseParent, waistSafePose, robot, maxRandomSteps, granulation, targetBias, jointMoveBias);
+        nextInterPose = createNextSafeFixedWaistRandomPose(nextInterPoseParent, waistSafePose, robot, maxRandomSteps, granulation, targetBias, jointMoveBias, qBaseBalancing);
 
         // TODO Add it to eigen Matrix in a better fashion
         Eigen::MatrixXd trajectoryTreeTmp(trajectoryTree.rows() + 1, trajectoryTree.cols());
@@ -355,7 +366,7 @@ Eigen::MatrixXd createFixedWaistTrajectory(Eigen::MatrixXd startPose, Eigen::Mat
         //cout << "Parent" << posesInTree/branchFactor << endl;
         cout << "PosesInTree" << posesInTree << endl;
 
-        nextInterPose = createNextSafeFixedWaistRandomPose(nextInterPoseParent, endPose, robot, maxRandomSteps, granulation, targetBias, jointMoveBias);
+        nextInterPose = createNextSafeFixedWaistRandomPose(nextInterPoseParent, endPose, robot, maxRandomSteps, granulation, targetBias, jointMoveBias, qBaseBalancing);
 
         // TODO Add it to eigen Matrix in a better fashion
         Eigen::MatrixXd trajectoryTreeTmp(trajectoryTree.rows() + 1, trajectoryTree.cols());
@@ -410,7 +421,7 @@ Eigen::MatrixXd smoothTrajectory(Eigen::MatrixXd trajectory) {
 
 // // Create next random pose
 // TODO Need to create a random disturbance from initialPose
-Eigen::MatrixXd createNextSafeRandomPose(Eigen::MatrixXd initialPose, Eigen::MatrixXd targetPose, SkeletonPtr robot, Eigen::MatrixXd maxRandomSteps, int granulation, double targetBias, double jointMoveBias) {
+Eigen::MatrixXd createNextSafeRandomPose(Eigen::MatrixXd initialPose, Eigen::MatrixXd targetPose, SkeletonPtr robot, Eigen::MatrixXd maxRandomSteps, int granulation, double targetBias, double jointMoveBias, bool qBaseBalancing) {
     Eigen::MatrixXd randomPoseParams;
     //Eigen::MatrixXd randomPoseParams = initialPose.transpose();
 
@@ -518,7 +529,7 @@ Eigen::MatrixXd createNextSafeRandomPose(Eigen::MatrixXd initialPose, Eigen::Mat
                 randomPoseParams(index, 0) += step * jointMove[ii];
                 index++;
             }
-
+            randomPoseParams = angleBalancePose(robot, randomPoseParams);
             // Run it through collision check with granulation, if it passes then return
             robot->setPositions(munzirToDart(randomPoseParams.transpose()));
             inCollision = isColliding(robot);
@@ -620,6 +631,7 @@ Eigen::MatrixXd createNextSafeRandomPose(Eigen::MatrixXd initialPose, Eigen::Mat
                 index++;
             }
 
+            randomPoseParams = angleBalancePose(robot, randomPoseParams);
             // Run it through collision check with granulation, if it passes then return
             robot->setPositions(munzirToDart(randomPoseParams.transpose()));
             inCollision = isColliding(robot);
@@ -637,6 +649,7 @@ Eigen::MatrixXd createNextSafeRandomPose(Eigen::MatrixXd initialPose, Eigen::Mat
         }
         }
 
+        randomPoseParams = angleBalancePose(robot, randomPoseParams);
         // Run it through collision check with granulation, if it passes then return
         robot->setPositions(munzirToDart(randomPoseParams.transpose()));
         inCollision = isColliding(robot);
@@ -661,7 +674,7 @@ Eigen::MatrixXd createNextSafeRandomPose(Eigen::MatrixXd initialPose, Eigen::Mat
 // TODO Need to create a random disturbance from initialPose, why? lol
 // forgetting comments
 // TODO Need to set waist to constant value for each new one created
-Eigen::MatrixXd createNextSafeFixedWaistRandomPose(Eigen::MatrixXd initialPose, Eigen::MatrixXd targetPose, SkeletonPtr robot, Eigen::MatrixXd maxRandomSteps, int granulation, double targetBias, double jointMoveBias) {
+Eigen::MatrixXd createNextSafeFixedWaistRandomPose(Eigen::MatrixXd initialPose, Eigen::MatrixXd targetPose, SkeletonPtr robot, Eigen::MatrixXd maxRandomSteps, int granulation, double targetBias, double jointMoveBias, bool qBaseBalancing) {
     Eigen::MatrixXd randomPoseParams;
 
     //double a = 0; //heading
@@ -864,6 +877,7 @@ Eigen::MatrixXd createNextSafeFixedWaistRandomPose(Eigen::MatrixXd initialPose, 
         //string isIniCol = to_string(inCollision);
         //cout << "Ini is col" + isIniCol << endl;
 
+        randomPoseParams = angleBalancePose(robot, randomPoseParams);
         // Run it through collision check with granulation, if it passes then return
 
         robot->setPositions(munzirToDart(randomPoseParams.transpose()));
