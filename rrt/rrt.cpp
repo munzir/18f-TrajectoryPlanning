@@ -40,13 +40,13 @@ double upperLimit[] = {2.88, 1.57, pi, bendLimit, pi, bendLimit, pi, bendLimit, 
 
 // Function Prototypes
 // // Find all interpose trajectories
-Eigen::MatrixXd createAllTrajectories(Eigen::MatrixXd inputPoses, string fullRobotPath, int branchFactor, double tolerance, Eigen::MatrixXd maxRandomSteps, int granulation, double targetBias, double jointMoveBias, bool fixedWaist, bool qBaseBalancing);
+Eigen::MatrixXd createAllTrajectories(Eigen::MatrixXd inputPoses, string fullRobotPath, int branchFactor, double tolerance, Eigen::MatrixXd maxRandomSteps, int granulation, double targetBias, double jointMoveBias, bool fixedWaist, bool qBaseBalancing, Eigen::MatrixXd jointVelocities, double timeGranulation);
 
 // // Find interpose trajectory
-Eigen::MatrixXd createTrajectory(Eigen::MatrixXd startPose, Eigen::MatrixXd endPose, SkeletonPtr robot, int branchFactor, double tolerance, Eigen::MatrixXd maxRandomSteps, int granulation, double targetBias, double jointMoveBias, bool qBaseBalancing);
+Eigen::MatrixXd createTrajectory(Eigen::MatrixXd startPose, Eigen::MatrixXd endPose, SkeletonPtr robot, int branchFactor, double tolerance, Eigen::MatrixXd maxRandomSteps, int granulation, double targetBias, double jointMoveBias, bool qBaseBalancing, Eigen::MatrixXd jointVelocities, double timeGranulation);
 
 // // Find fixed waist interpose trajectory
-Eigen::MatrixXd createFixedWaistTrajectory(Eigen::MatrixXd startPose, Eigen::MatrixXd endPose, SkeletonPtr robot, int branchFactor, double tolerance, Eigen::MatrixXd maxRandomSteps, int granulation, double targetBias, double jointMoveBias, bool qBaseBalancing);
+Eigen::MatrixXd createFixedWaistTrajectory(Eigen::MatrixXd startPose, Eigen::MatrixXd endPose, SkeletonPtr robot, int branchFactor, double tolerance, Eigen::MatrixXd maxRandomSteps, int granulation, double targetBias, double jointMoveBias, bool qBaseBalancing, Eigen::MatrixXd jointVelocities, double timeGranulation);
 
 // // Prune interpose trajectory
 Eigen::MatrixXd pruneTrajectory(Eigen::MatrixXd trajectory);
@@ -55,10 +55,10 @@ Eigen::MatrixXd pruneTrajectory(Eigen::MatrixXd trajectory);
 Eigen::MatrixXd smoothTrajectory(Eigen::MatrixXd trajectory);
 
 // // Create next safe random pose
-Eigen::MatrixXd createNextSafeRandomPose(Eigen::MatrixXd initialPose, Eigen::MatrixXd targetPose, SkeletonPtr robot, Eigen::MatrixXd maxRandomSteps, int granulation, double targetBias, double jointMoveBias, bool qBaseBalancing);
+Eigen::MatrixXd createNextSafeRandomPose(Eigen::MatrixXd initialPose, Eigen::MatrixXd targetPose, SkeletonPtr robot, Eigen::MatrixXd maxRandomSteps, int granulation, double targetBias, double jointMoveBias, bool qBaseBalancing, Eigen::MatrixXd jointVelocities, double timeGranulation, double tolerance);
 
 // // Create next safe fixed waist random pose
-Eigen::MatrixXd createNextSafeFixedWaistRandomPose(Eigen::MatrixXd initialPose, Eigen::MatrixXd targetPose, SkeletonPtr robot, Eigen::MatrixXd maxRandomSteps, int granulation, double targetBias, double jointMoveBias, bool qBaseBalancing);
+Eigen::MatrixXd createNextSafeFixedWaistRandomPose(Eigen::MatrixXd initialPose, Eigen::MatrixXd targetPose, SkeletonPtr robot, Eigen::MatrixXd maxRandomSteps, int granulation, double targetBias, double jointMoveBias, bool qBaseBalancing, Eigen::MatrixXd jointVelocities, double timeGranulation, double tolerance);
 
 // // Move just the waist
 bool moveWaistOnly(Eigen::MatrixXd startPose, double targetWaistPosition, Eigen::MatrixXd *nextPose, SkeletonPtr robot);
@@ -68,6 +68,15 @@ bool closeEnough(Eigen::MatrixXd pose1, Eigen::MatrixXd pose2, double tolerance)
 
 // // Check if two poses are the same (close enough)
 bool allButWaistCloseEnough(Eigen::MatrixXd pose1, Eigen::MatrixXd pose2, double tolerance);
+
+// // Check collision with based on velocity movements
+bool inVelocityCollision(Eigen::MatrixXd jointVelocities, double timeGranulation, Eigen::MatrixXd pose1, Eigen::MatrixXd pose2, double tolerance, SkeletonPtr robot);
+
+// // Check which joints are the same
+Eigen::MatrixXd jointsInSamePosition(Eigen::MatrixXd pose1, Eigen::MatrixXd pose2, double tolerance);
+
+// // Helper method to flip 1s & 0s in a matrix
+Eigen::MatrixXd binaryFlipMatrix(Eigen::MatrixXd matrix);
 
 // TODO: Commandline arguments a default values
 int main() {
@@ -122,6 +131,22 @@ int main() {
     //int granulation = 1000;
     //int granulation = 5;
 
+    // INPUT on below line (velocities for each joint (in rads/s))
+    // This assumes fixed velocities instead of all the joints arriving at the
+    // goal location at the same time
+    Eigen::MatrixXd jointVelocities(1, 23);
+    jointVelocities << 0, 0.1, // heading, qBase
+                        0, 0, 0, 0, 0, // x, y, z, qLWheel, qRWheel
+                        0.1, 0.1, // qWaist, qTorso
+          0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, // qRArm0, ..., qRArm6 (from shoulder to the last joint)
+          0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1; // qRArm0, ..., qRArm6 (from shoulder to the last joint)
+
+    // INPUT on below line (time granulation) (what interval of seconds to check
+    // for collisions) (in seconds) (e.g. a value of 0.5 would be to check
+    // collision twice every 1 second)
+    //double timeGranulation = 0.001;
+    double timeGranulation = 1.0;
+
     // INPUT on below line (target bias in decimal)
     double targetBias = 0.80;
 
@@ -144,7 +169,7 @@ int main() {
     }
 
     cout << "Generating Trajectories ...\n";
-    Eigen::MatrixXd allTrajectories = createAllTrajectories(inputPoses, fullRobotPath, branchFactor, tolerance, maxRandomSteps, granulation, targetBias, jointMoveBias, fixedWaist, qBaseBalancing);
+    Eigen::MatrixXd allTrajectories = createAllTrajectories(inputPoses, fullRobotPath, branchFactor, tolerance, maxRandomSteps, granulation, targetBias, jointMoveBias, fixedWaist, qBaseBalancing, jointVelocities, timeGranulation);
     cout << "|-> Done\n";
 
     // Write test xCOM values to file
@@ -166,7 +191,7 @@ int main() {
 
 // // Find all interpose trajectories
 //TODO
-Eigen::MatrixXd createAllTrajectories(Eigen::MatrixXd inputPoses, string fullRobotPath, int branchFactor, double tolerance, Eigen::MatrixXd maxRandomSteps, int granulation, double targetBias, double jointMoveBias, bool fixedWaist, bool qBaseBalancing) {
+Eigen::MatrixXd createAllTrajectories(Eigen::MatrixXd inputPoses, string fullRobotPath, int branchFactor, double tolerance, Eigen::MatrixXd maxRandomSteps, int granulation, double targetBias, double jointMoveBias, bool fixedWaist, bool qBaseBalancing, Eigen::MatrixXd jointVelocities, double timeGranulation) {
     // Instantiate full robot
     DartLoader loader;
     SkeletonPtr robot = loader.parseSkeleton(fullRobotPath);
@@ -178,9 +203,9 @@ Eigen::MatrixXd createAllTrajectories(Eigen::MatrixXd inputPoses, string fullRob
         cout << "Trajectory from " << pose + 1 << " to " << pose + 2 << endl;
         Eigen::MatrixXd interPoseTraj;
         if (fixedWaist) {
-            interPoseTraj = createFixedWaistTrajectory(inputPoses.row(pose), inputPoses.row(pose + 1), robot, branchFactor, tolerance, maxRandomSteps, granulation, targetBias, jointMoveBias, qBaseBalancing);
+            interPoseTraj = createFixedWaistTrajectory(inputPoses.row(pose), inputPoses.row(pose + 1), robot, branchFactor, tolerance, maxRandomSteps, granulation, targetBias, jointMoveBias, qBaseBalancing, jointVelocities, timeGranulation);
         } else {
-            interPoseTraj = createTrajectory(inputPoses.row(pose), inputPoses.row(pose + 1), robot, branchFactor, tolerance, maxRandomSteps, granulation, targetBias, jointMoveBias, qBaseBalancing);
+            interPoseTraj = createTrajectory(inputPoses.row(pose), inputPoses.row(pose + 1), robot, branchFactor, tolerance, maxRandomSteps, granulation, targetBias, jointMoveBias, qBaseBalancing, jointVelocities, timeGranulation);
         }
         Eigen::MatrixXd prunedInterPoseTraj = pruneTrajectory(interPoseTraj);
         Eigen::MatrixXd smoothedInterPoseTraj = smoothTrajectory(prunedInterPoseTraj);
@@ -204,7 +229,7 @@ Eigen::MatrixXd createAllTrajectories(Eigen::MatrixXd inputPoses, string fullRob
 
 // // Find interpose trajectory
 //TODO
-Eigen::MatrixXd createTrajectory(Eigen::MatrixXd startPose, Eigen::MatrixXd endPose, SkeletonPtr robot, int branchFactor, double tolerance, Eigen::MatrixXd maxRandomSteps, int granulation, double targetBias, double jointMoveBias, bool qBaseBalancing) {
+Eigen::MatrixXd createTrajectory(Eigen::MatrixXd startPose, Eigen::MatrixXd endPose, SkeletonPtr robot, int branchFactor, double tolerance, Eigen::MatrixXd maxRandomSteps, int granulation, double targetBias, double jointMoveBias, bool qBaseBalancing, Eigen::MatrixXd jointVelocities, double timeGranulation) {
     // Need to create the tree in this method
     // root is startPose
     // goal is endPose
@@ -225,7 +250,7 @@ Eigen::MatrixXd createTrajectory(Eigen::MatrixXd startPose, Eigen::MatrixXd endP
 
         //cout << "Parent" << posesInTree/branchFactor << endl;
         cout << "PosesInTree" << posesInTree << endl;
-        nextInterPose = createNextSafeRandomPose(nextInterPoseParent, endPose, robot, maxRandomSteps, granulation, targetBias, jointMoveBias, qBaseBalancing);
+        nextInterPose = createNextSafeRandomPose(nextInterPoseParent, endPose, robot, maxRandomSteps, granulation, targetBias, jointMoveBias, qBaseBalancing, jointVelocities, timeGranulation, tolerance);
         // TODO Add it to eigen Matrix in a better fashion
         Eigen::MatrixXd trajectoryTreeTmp(trajectoryTree.rows() + 1, trajectoryTree.cols());
         trajectoryTreeTmp << trajectoryTree,
@@ -267,7 +292,7 @@ Eigen::MatrixXd createTrajectory(Eigen::MatrixXd startPose, Eigen::MatrixXd endP
 
 // // Find fixed waist interpose trajectory
 //TODO
-Eigen::MatrixXd createFixedWaistTrajectory(Eigen::MatrixXd startPose, Eigen::MatrixXd endPose, SkeletonPtr robot, int branchFactor, double tolerance, Eigen::MatrixXd maxRandomSteps, int granulation, double targetBias, double jointMoveBias, bool qBaseBalancing) {
+Eigen::MatrixXd createFixedWaistTrajectory(Eigen::MatrixXd startPose, Eigen::MatrixXd endPose, SkeletonPtr robot, int branchFactor, double tolerance, Eigen::MatrixXd maxRandomSteps, int granulation, double targetBias, double jointMoveBias, bool qBaseBalancing, Eigen::MatrixXd jointVelocities, double timeGranulation) {
     // Need to create the tree in this method
     // root is startPose
     // goal is endPose
@@ -322,7 +347,7 @@ Eigen::MatrixXd createFixedWaistTrajectory(Eigen::MatrixXd startPose, Eigen::Mat
         //cout << "Parent" << posesInTree/branchFactor << endl;
         cout << "PosesInTree" << posesInTree << endl;
 
-        nextInterPose = createNextSafeFixedWaistRandomPose(nextInterPoseParent, waistSafePose, robot, maxRandomSteps, granulation, targetBias, jointMoveBias, qBaseBalancing);
+        nextInterPose = createNextSafeFixedWaistRandomPose(nextInterPoseParent, waistSafePose, robot, maxRandomSteps, granulation, targetBias, jointMoveBias, qBaseBalancing, jointVelocities, timeGranulation, tolerance);
 
         // TODO Add it to eigen Matrix in a better fashion
         Eigen::MatrixXd trajectoryTreeTmp(trajectoryTree.rows() + 1, trajectoryTree.cols());
@@ -366,7 +391,7 @@ Eigen::MatrixXd createFixedWaistTrajectory(Eigen::MatrixXd startPose, Eigen::Mat
         //cout << "Parent" << posesInTree/branchFactor << endl;
         cout << "PosesInTree" << posesInTree << endl;
 
-        nextInterPose = createNextSafeFixedWaistRandomPose(nextInterPoseParent, endPose, robot, maxRandomSteps, granulation, targetBias, jointMoveBias, qBaseBalancing);
+        nextInterPose = createNextSafeFixedWaistRandomPose(nextInterPoseParent, endPose, robot, maxRandomSteps, granulation, targetBias, jointMoveBias, qBaseBalancing, jointVelocities, timeGranulation, tolerance);
 
         // TODO Add it to eigen Matrix in a better fashion
         Eigen::MatrixXd trajectoryTreeTmp(trajectoryTree.rows() + 1, trajectoryTree.cols());
@@ -421,7 +446,7 @@ Eigen::MatrixXd smoothTrajectory(Eigen::MatrixXd trajectory) {
 
 // // Create next random pose
 // TODO Need to create a random disturbance from initialPose
-Eigen::MatrixXd createNextSafeRandomPose(Eigen::MatrixXd initialPose, Eigen::MatrixXd targetPose, SkeletonPtr robot, Eigen::MatrixXd maxRandomSteps, int granulation, double targetBias, double jointMoveBias, bool qBaseBalancing) {
+Eigen::MatrixXd createNextSafeRandomPose(Eigen::MatrixXd initialPose, Eigen::MatrixXd targetPose, SkeletonPtr robot, Eigen::MatrixXd maxRandomSteps, int granulation, double targetBias, double jointMoveBias, bool qBaseBalancing, Eigen::MatrixXd jointVelocities, double timeGranulation, double tolerance) {
     Eigen::MatrixXd randomPoseParams;
     //Eigen::MatrixXd randomPoseParams = initialPose.transpose();
 
@@ -534,14 +559,17 @@ Eigen::MatrixXd createNextSafeRandomPose(Eigen::MatrixXd initialPose, Eigen::Mat
             robot->setPositions(munzirToDart(randomPoseParams.transpose()));
             inCollision = isColliding(robot);
             if (!inCollision) {
-                for (int g = 1; g < granulation + 1; g++) {
-                    Eigen::MatrixXd nextStepPose = initialPose + (randomPoseParams.transpose() - initialPose) * (((double) g)/granulation);
-                    robot->setPositions(munzirToDart(nextStepPose));
-                    inCollision = isColliding(robot);
-                    if (inCollision == true) {
-                        break;
-                    }
-                }
+
+                inCollision = inVelocityCollision(jointVelocities, timeGranulation, initialPose, randomPoseParams.transpose(), tolerance, robot);
+
+                //for (int g = 1; g < granulation + 1; g++) {
+                //    Eigen::MatrixXd nextStepPose = initialPose + (randomPoseParams.transpose() - initialPose) * (((double) g)/granulation);
+                //    robot->setPositions(munzirToDart(nextStepPose));
+                //    inCollision = isColliding(robot);
+                //    if (inCollision == true) {
+                //        break;
+                //    }
+                //}
             }
             //cout << "Pose is colliding" << endl;
         }
@@ -636,14 +664,17 @@ Eigen::MatrixXd createNextSafeRandomPose(Eigen::MatrixXd initialPose, Eigen::Mat
             robot->setPositions(munzirToDart(randomPoseParams.transpose()));
             inCollision = isColliding(robot);
             if (!inCollision) {
-                for (int g = 1; g < granulation + 1; g++) {
-                    Eigen::MatrixXd nextStepPose = initialPose + (randomPoseParams.transpose() - initialPose) * (((double) g)/granulation);
-                    robot->setPositions(munzirToDart(nextStepPose));
-                    inCollision = isColliding(robot);
-                    if (inCollision == true) {
-                        break;
-                    }
-                }
+
+                inCollision = inVelocityCollision(jointVelocities, timeGranulation, initialPose, randomPoseParams.transpose(), tolerance, robot);
+
+                //for (int g = 1; g < granulation + 1; g++) {
+                //    Eigen::MatrixXd nextStepPose = initialPose + (randomPoseParams.transpose() - initialPose) * (((double) g)/granulation);
+                //    robot->setPositions(munzirToDart(nextStepPose));
+                //    inCollision = isColliding(robot);
+                //    if (inCollision == true) {
+                //        break;
+                //    }
+                //}
             }
             //cout << "Pose is colliding" << endl;
         }
@@ -654,14 +685,17 @@ Eigen::MatrixXd createNextSafeRandomPose(Eigen::MatrixXd initialPose, Eigen::Mat
         robot->setPositions(munzirToDart(randomPoseParams.transpose()));
         inCollision = isColliding(robot);
         if (!inCollision) {
-            for (int g = 1; g < granulation + 1; g++) {
-                Eigen::MatrixXd nextStepPose = initialPose + (randomPoseParams.transpose() - initialPose) * (((double) g)/granulation);
-                robot->setPositions(munzirToDart(nextStepPose));
-                inCollision = isColliding(robot);
-                if (inCollision == true) {
-                    break;
-                }
-            }
+
+            inCollision = inVelocityCollision(jointVelocities, timeGranulation, initialPose, randomPoseParams.transpose(), tolerance, robot);
+
+            //for (int g = 1; g < granulation + 1; g++) {
+            //    Eigen::MatrixXd nextStepPose = initialPose + (randomPoseParams.transpose() - initialPose) * (((double) g)/granulation);
+            //    robot->setPositions(munzirToDart(nextStepPose));
+            //    inCollision = isColliding(robot);
+            //    if (inCollision == true) {
+            //        break;
+            //    }
+            //}
         }
         //cout << "Pose is colliding" << endl;
     }
@@ -674,7 +708,7 @@ Eigen::MatrixXd createNextSafeRandomPose(Eigen::MatrixXd initialPose, Eigen::Mat
 // TODO Need to create a random disturbance from initialPose, why? lol
 // forgetting comments
 // TODO Need to set waist to constant value for each new one created
-Eigen::MatrixXd createNextSafeFixedWaistRandomPose(Eigen::MatrixXd initialPose, Eigen::MatrixXd targetPose, SkeletonPtr robot, Eigen::MatrixXd maxRandomSteps, int granulation, double targetBias, double jointMoveBias, bool qBaseBalancing) {
+Eigen::MatrixXd createNextSafeFixedWaistRandomPose(Eigen::MatrixXd initialPose, Eigen::MatrixXd targetPose, SkeletonPtr robot, Eigen::MatrixXd maxRandomSteps, int granulation, double targetBias, double jointMoveBias, bool qBaseBalancing, Eigen::MatrixXd jointVelocities, double timeGranulation, double tolerance) {
     Eigen::MatrixXd randomPoseParams;
 
     //double a = 0; //heading
@@ -883,14 +917,17 @@ Eigen::MatrixXd createNextSafeFixedWaistRandomPose(Eigen::MatrixXd initialPose, 
         robot->setPositions(munzirToDart(randomPoseParams.transpose()));
         inCollision = isColliding(robot);
         if (!inCollision) {
-            for (int g = 1; g < granulation + 1; g++) {
-                Eigen::MatrixXd nextStepPose = initialPose + (randomPoseParams.transpose() - initialPose) * (((double) g)/granulation);
-                robot->setPositions(munzirToDart(nextStepPose));
-                inCollision = isColliding(robot);
-                if (inCollision == true) {
-                    break;
-                }
-            }
+
+            inCollision = inVelocityCollision(jointVelocities, timeGranulation, initialPose, randomPoseParams.transpose(), tolerance, robot);
+
+            //for (int g = 1; g < granulation + 1; g++) {
+            //    Eigen::MatrixXd nextStepPose = initialPose + (randomPoseParams.transpose() - initialPose) * (((double) g)/granulation);
+            //    robot->setPositions(munzirToDart(nextStepPose));
+            //    inCollision = isColliding(robot);
+            //    if (inCollision == true) {
+            //        break;
+            //    }
+            //}
         }
         //cout << "Pose is colliding" << endl;
 
@@ -955,4 +992,59 @@ bool allButWaistCloseEnough(Eigen::MatrixXd pose1, Eigen::MatrixXd pose2, double
         }
     }
     return true;
+}
+
+// // Check collision with based on velocity movements
+bool inVelocityCollision(Eigen::MatrixXd jointVelocities, double timeGranulation, Eigen::MatrixXd pose1, Eigen::MatrixXd pose2, double tolerance, SkeletonPtr robot) {
+
+    bool inCollision = isColliding(robot);
+    Eigen::MatrixXd jointsNotReachedGoal = binaryFlipMatrix(jointsInSamePosition(pose1, pose2, tolerance));
+    Eigen::MatrixXd nextStepPose = pose1;
+
+    if (!inCollision) {
+        while (!jointsNotReachedGoal.isZero(0)) {
+            // Identifier matrix for which joints are in the same position
+            jointsNotReachedGoal = binaryFlipMatrix(jointsInSamePosition(nextStepPose, pose2, tolerance));
+
+            //TODO check how this actually plays out
+            // need to do element wise product to determine which ones to keep at the goal
+            // position and stop moving those
+
+            nextStepPose = nextStepPose + jointVelocities.cwiseProduct(jointsNotReachedGoal) * timeGranulation;
+
+            robot->setPositions(munzirToDart(nextStepPose));
+            inCollision = isColliding(robot);
+            if (inCollision == true) {
+                break;
+            }
+        }
+    }
+
+    return inCollision;
+}
+
+// // Check which joints are the same
+Eigen::MatrixXd jointsInSamePosition(Eigen::MatrixXd pose1, Eigen::MatrixXd pose2, double tolerance) {
+
+    Eigen::MatrixXd jointsReachedGoal = Eigen::MatrixXd::Zero(1, 23);
+    for (int i = 0; i < pose1.cols(); i++) {
+        if (abs(pose1.col(i)(0, 0) - pose2.col(i)(0, 0)) <= tolerance) {
+            jointsReachedGoal(0,i) = 1;
+        }
+    }
+    return jointsReachedGoal;
+}
+
+// // Helper method to flip 1s & 0s in a matrix
+Eigen::MatrixXd binaryFlipMatrix(Eigen::MatrixXd matrix) {
+    for (int i = 0; i < matrix.rows(); i++) {
+        for (int j = 0; j < matrix.cols(); j++) {
+            if (matrix(i, j) == 0) {
+                matrix(i, j) = 1;
+            } else if (matrix(i, j) == 1) {
+                matrix(i, j) = 0;
+            }
+        }
+    }
+    return matrix;
 }
